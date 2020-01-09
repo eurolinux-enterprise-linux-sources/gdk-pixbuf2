@@ -1,6 +1,6 @@
 Name:           gdk-pixbuf2
 Version:        2.24.1
-Release:        5%{?dist}
+Release:        6%{?dist}
 Summary:        An image loading library
 
 Group:          System Environment/Libraries
@@ -9,6 +9,9 @@ URL:            http://www.gt.org
 #VCS:           git:git://git.gnome.org/gdk-pixbuf
 Source0:        http://download.gnome.org/sources/gdk-pixbuf/2.24/gdk-pixbuf-%{version}.tar.xz
 Source1:        update-gdk-pixbuf-loaders
+
+# https://bugzilla.redhat.com/show_bug.cgi?id=1253211
+Patch0:         cve-2015-4491.patch
 
 BuildRequires:  glib2-devel
 BuildRequires:  libpng-devel
@@ -50,6 +53,7 @@ for writing applications that are using gdk-pixbuf.
 
 %prep
 %setup -q -n gdk-pixbuf-%{version}
+%patch0 -p1
 
 %build
 (if ! test -x configure; then NOCONFIGURE=1 ./autogen.sh; CONFIGFLAGS=--enable-gtk-doc; fi;
@@ -114,6 +118,10 @@ fi
 
 
 %changelog
+* Mon Aug 18 2015 Benjamin Otte <otte@redhat.com> - 2.24.1-6
+- Fix CVE 2015-4491
+- Resolves #1253210
+
 * Wed Jul 23 2014 Marek Kasik <mkasik@redhat.com> - 2.24.1-5
 - Don't list content of non-existing directories in update-gdk-pixbuf-loaders
 - Resolves: #1119743

@@ -1,0 +1,27 @@
+#! /bin/sh
+
+if test $# != 1; then
+  echo usage: update-gdk-pixbuf-loaders host_triplet 1>&2
+  exit 1
+fi
+
+umask 022
+# autoconf changes linux to linux-gnu
+case "$1" in
+  *linux) host="$1-gnu"
+  ;;
+  *) host=$1
+  ;;
+esac
+
+# autoconf uses powerpc not ppc
+host=`echo $host | sed "s/^ppc/powerpc/"`
+
+case "$host" in
+  alpha*|ia64*|powerpc64*|s390x*|x86_64*)
+   /usr/bin/gdk-pixbuf-query-loaders-64 --update-cache
+   ;;
+  *)
+   /usr/bin/gdk-pixbuf-query-loaders-32 --update-cache
+   ;;
+esac

@@ -243,7 +243,7 @@ pnm_read_next_value (PnmIOBuffer *inbuf, gint max_length, guint *value, GError *
 		g_set_error_literal (error,
                                      GDK_PIXBUF_ERROR,
                                      GDK_PIXBUF_ERROR_CORRUPT_IMAGE,
-                                     _("PNM loader expected to find an integer, but didn't"));
+                                     _("PNM loader expected to find an integer, but didn’t"));
 		return PNM_FATAL_ERR;
 	}
 	*value = result;
@@ -325,7 +325,15 @@ pnm_read_header (PnmLoaderContext *context)
 		
 		if (retval != PNM_OK) 
 			return retval;
-		
+
+		if (width > G_MAXINT) {
+			g_set_error_literal (context->error,
+                                             GDK_PIXBUF_ERROR,
+                                             GDK_PIXBUF_ERROR_CORRUPT_IMAGE,
+                                             _("PNM file has an invalid width"));
+			return PNM_FATAL_ERR;
+		}
+
 		if (!width) {
 			g_set_error_literal (context->error,
                                              GDK_PIXBUF_ERROR,
@@ -346,7 +354,15 @@ pnm_read_header (PnmLoaderContext *context)
 		
 		if (retval != PNM_OK)
 			return retval;
-		
+
+		if (height > G_MAXINT) {
+			g_set_error_literal (context->error,
+                                             GDK_PIXBUF_ERROR,
+                                             GDK_PIXBUF_ERROR_CORRUPT_IMAGE,
+                                             _("PNM file has an invalid height"));
+			return PNM_FATAL_ERR;
+		}
+
 		if (!height) {
 			g_set_error_literal (context->error,
                                              GDK_PIXBUF_ERROR,

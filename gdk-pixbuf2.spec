@@ -1,34 +1,29 @@
-%global glib2_version 2.37.6
+%global glib2_version 2.48.0
 
 Name:           gdk-pixbuf2
-Version:        2.31.6
+Version:        2.36.12
 Release:        3%{?dist}
 Summary:        An image loading library
 
-Group:          System Environment/Libraries
 License:        LGPLv2+
-URL:            http://www.gt.org
+URL:            http://www.gtk.org
 #VCS:           git:git://git.gnome.org/gdk-pixbuf
-Source0:        http://download.gnome.org/sources/gdk-pixbuf/2.31/gdk-pixbuf-%{version}.tar.xz
+Source0:        http://download.gnome.org/sources/gdk-pixbuf/2.36/gdk-pixbuf-%{version}.tar.xz
 
-Patch0: 0001-pixops-Chane-variable-type.patch
-Patch1: 0002-pixops-Be-smarter-than-gcc-s-optimizer.patch
-Patch2: 0001-pixops-Fail-make_weights-functions-on-OOM.patch
-Patch3: 0001-Skip-tests-when-we-can-t-run-them-due-to-lack-of-mem.patch
-
-BuildRequires:  glib2-devel >= %{glib2_version}
+BuildRequires:  pkgconfig(gio-2.0) >= %{glib2_version}
 BuildRequires:  libpng-devel
 BuildRequires:  libjpeg-devel
 BuildRequires:  libtiff-devel
 BuildRequires:  jasper-devel
-BuildRequires:  libX11-devel
-BuildRequires:  gobject-introspection-devel >= 0.9.3
+BuildRequires:  pkgconfig(x11)
+BuildRequires:  pkgconfig(gobject-introspection-1.0) >= 0.9.3
 # gdk-pixbuf does a configure time check which uses the GIO mime
 # layer; we need to actually have the mime type database.
 BuildRequires:  shared-mime-info
-# Bootstrap requirements
-BuildRequires: autoconf automake libtool gtk-doc
-BuildRequires: gettext-autopoint
+
+# needed for man page generation
+BuildRequires:  docbook-style-xsl
+BuildRequires:  libxslt
 
 Requires: glib2%{?_isa} >= %{glib2_version}
 
@@ -45,7 +40,6 @@ clutter.
 
 %package devel
 Summary: Development files for gdk-pixbuf
-Group: Development/Libraries
 Requires: %{name}%{?_isa} = %{version}-%{release}
 Requires: glib2-devel%{?_isa} >= %{glib2_version}
 
@@ -58,7 +52,6 @@ for writing applications that are using gdk-pixbuf.
 
 %package tests
 Summary: Tests for the %{name} package
-Group: Development/Libraries
 Requires: %{name}%{?_isa} = %{version}-%{release}
 
 %description tests
@@ -67,26 +60,25 @@ the functionality of the installed %{name} package.
 
 
 %prep
-%setup -q -n gdk-pixbuf-%{version}
-%patch0 -p1
-%patch1 -p1
-%patch2 -p1
-%patch3 -p1
+%autosetup -n gdk-pixbuf-%{version} -p1
 
 %build
-(if ! test -x configure; then NOCONFIGURE=1 ./autogen.sh; CONFIGFLAGS=--enable-gtk-doc; fi;
- %configure $CONFIGFLAGS             \
+%configure                           \
         --with-x11                   \
         --with-libjasper             \
         --with-included-loaders=png  \
-        --enable-installed-tests
-)
+        --enable-installed-tests     \
+        --enable-man                 \
+        --disable-silent-rules
+
+# needed to work around bug in makefile goo
+rm -f docs/reference/gdk-pixbuf/*.1
+
 make %{?_smp_mflags}
 
 
 %install
-make install DESTDIR=$RPM_BUILD_ROOT    \
-             RUN_QUERY_LOADER_TEST=false
+%make_install RUN_QUERY_LOADER_TEST=false
 
 # Remove unpackaged files
 rm $RPM_BUILD_ROOT%{_libdir}/*.la
@@ -111,7 +103,8 @@ if [ $1 -gt 0 ]; then
 fi
 
 %files -f gdk-pixbuf.lang
-%doc AUTHORS COPYING NEWS
+%license COPYING
+%doc AUTHORS NEWS
 %{_libdir}/libgdk_pixbuf-2.0.so.*
 %{_libdir}/libgdk_pixbuf_xlib-2.0.so.*
 %{_libdir}/girepository-1.0
@@ -121,7 +114,9 @@ fi
 %{_libdir}/gdk-pixbuf-2.0/2.10.0/loaders/*.so
 %ghost %{_libdir}/gdk-pixbuf-2.0/2.10.0/loaders.cache
 %{_bindir}/gdk-pixbuf-query-loaders-%{__isa_bits}
+%{_bindir}/gdk-pixbuf-thumbnailer
 %{_mandir}/man1/gdk-pixbuf-query-loaders.1*
+%{_datadir}/thumbnailers/
 
 %files devel
 %{_includedir}/gdk-pixbuf-2.0
@@ -141,6 +136,26 @@ fi
 
 
 %changelog
+* Thu Jul 26 2018 Ray Strode <rstrode@redhat.com> - 2.36.12-3
+- One more crack at generating man pages
+  Related: #1569815
+
+* Thu Jul 26 2018 Ray Strode <rstrode@redhat.com> - 2.36.12-2
+- Generate man page
+  Related: #1569815
+
+* Sun Apr 08 2018 Kalev Lember <klember@redhat.com> - 2.36.12-1
+- Update to 2.36.12
+- Resolves: #1569815
+
+* Mon Feb 13 2017 Kalev Lember <klember@redhat.com> - 2.36.5-1
+- Update to 2.36.5
+- Resolves: #1386861
+
+* Mon Jan 16 2017 Kalev Lember <klember@redhat.com> - 2.36.4-1
+- Update to 2.36.4
+- Resolves: #1386861
+
 * Tue Sep 22 2015 Benjamin Otte <otte@gnome.org> - 2.31.6-3
 - Fix testsuite more
 - Resolves: #1264466

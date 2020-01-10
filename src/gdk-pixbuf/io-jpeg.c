@@ -35,6 +35,7 @@
 #include <math.h>
 
 #include "gdk-pixbuf-private.h"
+#include "fallback-c89.c"
 
 #ifndef HAVE_SIGSETJMP
 #define sigjmp_buf jmp_buf
@@ -99,7 +100,8 @@ static gboolean gdk_pixbuf__jpeg_image_stop_load (gpointer context, GError **err
 static gboolean gdk_pixbuf__jpeg_image_load_increment(gpointer context,
                                                       const guchar *buf, guint size,
                                                       GError **error);
-
+static gboolean gdk_pixbuf__jpeg_image_load_lines (JpegProgContext  *context,
+                                                   GError          **error);
 
 static void
 fatal_error_handler (j_common_ptr cinfo)
@@ -444,26 +446,36 @@ jpeg_parse_exif_app1 (JpegExifContext *context, jpeg_saved_marker_ptr marker)
 	i = i + offset;
 
 	/* check that we still are within the buffer and can read the tag count */
-	if ((i + 2) > marker->data_length) {
-		ret = FALSE;
-		goto out;
-	}
+	{
+	    const size_t new_i = i + 2;
+	    if (new_i < i || new_i > marker->data_length) {
+		    ret = FALSE;
+		    goto out;
+	    }
 
-	/* find out how many tags we have in IFD0. As per the TIFF spec, the first
-	   two bytes of the IFD contain a count of the number of tags. */
-	tags = de_get16(&marker->data[i], endian);
-	i = i + 2;
+	    /* find out how many tags we have in IFD0. As per the TIFF spec, the first
+	       two bytes of the IFD contain a count of the number of tags. */
+	    tags = de_get16(&marker->data[i], endian);
+	    i = new_i;
+	}
 
 	/* check that we still have enough data for all tags to check. The tags
 	   are listed in consecutive 12-byte blocks. The tag ID, type, size, and
 	   a pointer to the actual value, are packed into these 12 byte entries. */
-	if ((i + tags * 12) > marker->data_length) {
+	{
+	    const size_t new_i = i + tags * 12;
+	    if (new_i < i || new_i > marker->data_length) {
 		ret = FALSE;
 		goto out;
+	    }
 	}
 
 	/* check through IFD0 for tags */
-	while (tags--){
+	while (tags--) {
+		size_t new_i;
+
+		/* We check for integer overflow before the loop and
+		 * at the end of each iteration */
 		guint tag   = de_get16(&marker->data[i + 0], endian);
 		guint type  = de_get16(&marker->data[i + 2], endian);
 		guint count = de_get32(&marker->data[i + 4], endian);
@@ -486,7 +498,12 @@ jpeg_parse_exif_app1 (JpegExifContext *context, jpeg_saved_marker_ptr marker)
 			}
 		}
 		/* move the pointer to the next 12-byte tag field. */
-		i = i + 12;
+		new_i = i + 12;
+		if (new_i < i || new_i > marker->data_length) {
+			ret = FALSE;
+			goto out;
+		}
+		i = new_i;
 	}
 
 out:
@@ -507,6 +524,21 @@ jpeg_parse_exif (JpegExifContext *context, j_decompress_ptr cinfo)
 			jpeg_parse_exif_app2_segment (context, cmarker);
 		cmarker = cmarker->next;
 	}
+}
+
+static gchar *
+jpeg_get_comment (j_decompress_ptr cinfo)
+{
+	jpeg_saved_marker_ptr cmarker;
+
+	cmarker = cinfo->marker_list;
+	while (cmarker != NULL) {
+		if (cmarker->marker == JPEG_COM)
+			return g_strndup ((const gchar *) cmarker->data, cmarker->data_length);
+		cmarker = cmarker->next;
+	}
+
+	return NULL;
 }
 
 static void
@@ -534,6 +566,7 @@ gdk_pixbuf__jpeg_image_load (FILE *f, GError **error)
 	struct error_handler_data jerr;
 	stdio_src_ptr src;
 	gchar *icc_profile_base64;
+	gchar *comment;
 	JpegExifContext exif_context = { 0, };
 
 	/* setup error handler */
@@ -576,6 +609,7 @@ gdk_pixbuf__jpeg_image_load (FILE *f, GError **error)
 
 	jpeg_save_markers (&cinfo, JPEG_APP0+1, 0xffff);
 	jpeg_save_markers (&cinfo, JPEG_APP0+2, 0xffff);
+	jpeg_save_markers (&cinfo, JPEG_COM, 0xffff);
 	jpeg_read_header (&cinfo, TRUE);
 
 	/* parse exif data */
@@ -601,6 +635,12 @@ gdk_pixbuf__jpeg_image_load (FILE *f, GError **error)
                 }
                
 		goto out; 
+	}
+
+	comment = jpeg_get_comment (&cinfo);
+	if (comment != NULL) {
+		gdk_pixbuf_set_option (pixbuf, "comment", comment);
+		g_free (comment);
 	}
 
 	switch (cinfo.density_unit) {
@@ -660,16 +700,13 @@ gdk_pixbuf__jpeg_image_load (FILE *f, GError **error)
 		      convert_cmyk_to_rgb (&cinfo, lines);
 		      break;
 		    default:
-		      g_object_unref (pixbuf);
-		      pixbuf = NULL;
-		      if (error && *error == NULL) {
-                        g_set_error (error,
-                                     GDK_PIXBUF_ERROR,
-				     GDK_PIXBUF_ERROR_UNKNOWN_TYPE,
-				     _("Unsupported JPEG color space (%s)"),
-				     colorspace_name (cinfo.out_color_space)); 
-		      }
-               	      goto out; 
+		      g_clear_object (&pixbuf);
+                      g_set_error (error,
+                                   GDK_PIXBUF_ERROR,
+				   GDK_PIXBUF_ERROR_UNKNOWN_TYPE,
+				   _("Unsupported JPEG color space (%s)"),
+				   colorspace_name (cinfo.out_color_space));
+		      goto out;
 		}
 	}
 
@@ -778,7 +815,7 @@ gdk_pixbuf__jpeg_image_begin_load (GdkPixbufModuleSizeFunc size_func,
 		g_set_error_literal (error,
                                      GDK_PIXBUF_ERROR,
                                      GDK_PIXBUF_ERROR_INSUFFICIENT_MEMORY,
-                                     _("Couldn't allocate memory for loading JPEG file"));
+                                     _("Couldn’t allocate memory for loading JPEG file"));
 		return NULL;
 	}
 	memset (context->cinfo.src, 0, sizeof (my_source_mgr));
@@ -806,10 +843,33 @@ static gboolean
 gdk_pixbuf__jpeg_image_stop_load (gpointer data, GError **error)
 {
 	JpegProgContext *context = (JpegProgContext *) data;
+	struct           jpeg_decompress_struct *cinfo;
         gboolean retval;
 
 	g_return_val_if_fail (context != NULL, TRUE);
-	
+
+	cinfo = &context->cinfo;
+
+	context->jerr.error = error;
+	if (!sigsetjmp (context->jerr.setjmp_buffer, 1)) {
+		/* Try to finish loading truncated files */
+		if (context->pixbuf &&
+		    cinfo->output_scanline < cinfo->output_height) {
+			my_src_ptr src = (my_src_ptr) cinfo->src;
+
+			/* But only if there's enough buffer space left */
+			if (src->skip_next < sizeof(src->buffer) - 2) {
+				/* Insert a fake EOI marker */
+				src->buffer[src->skip_next] = (JOCTET) 0xFF;
+				src->buffer[src->skip_next + 1] = (JOCTET) JPEG_EOI;
+				src->pub.next_input_byte = src->buffer + src->skip_next;
+				src->pub.bytes_in_buffer = 2;
+
+				gdk_pixbuf__jpeg_image_load_lines (context, NULL);
+			}
+		}
+	}
+
         /* FIXME this thing needs to report errors if
          * we have unused image data
          */
@@ -822,15 +882,14 @@ gdk_pixbuf__jpeg_image_stop_load (gpointer data, GError **error)
 	if (sigsetjmp (context->jerr.setjmp_buffer, 1)) {
                 retval = FALSE;
 	} else {
-		jpeg_finish_decompress (&context->cinfo);
+		jpeg_finish_decompress (cinfo);
                 retval = TRUE;
 	}
 
         jpeg_destroy_decompress (&context->cinfo);
 
-	if (context->cinfo.src) {
-		my_src_ptr src = (my_src_ptr) context->cinfo.src;
-		
+	if (cinfo->src) {
+		my_src_ptr src = (my_src_ptr) cinfo->src;
 		g_free (src);
 	}
 
@@ -875,18 +934,16 @@ gdk_pixbuf__jpeg_image_load_lines (JpegProgContext  *context,
                         convert_cmyk_to_rgb (cinfo, lines);
                         break;
                 default:
-                        if (error && *error == NULL) {
-                                g_set_error (error,
-                                             GDK_PIXBUF_ERROR,
-                                             GDK_PIXBUF_ERROR_UNKNOWN_TYPE,
-                                             _("Unsupported JPEG color space (%s)"),
-                                             colorspace_name (cinfo->out_color_space));
-                        }
+                        g_set_error (error,
+                                     GDK_PIXBUF_ERROR,
+                                     GDK_PIXBUF_ERROR_UNKNOWN_TYPE,
+                                     _("Unsupported JPEG color space (%s)"),
+                                     colorspace_name (cinfo->out_color_space));
 
                         return FALSE;
                 }
 
-                context->dptr += nlines * context->pixbuf->rowstride;
+                context->dptr += (gsize)nlines * context->pixbuf->rowstride;
 
                 /* send updated signal */
 		if (context->updated_func)
@@ -1011,9 +1068,12 @@ gdk_pixbuf__jpeg_image_load_increment (gpointer data,
 		/* try to load jpeg header */
 		if (!context->got_header) {
 			int rc;
+			gchar* comment;
+			gboolean has_alpha;
 		
 			jpeg_save_markers (cinfo, JPEG_APP0+1, 0xffff);
 			jpeg_save_markers (cinfo, JPEG_APP0+2, 0xffff);
+			jpeg_save_markers (cinfo, JPEG_COM, 0xffff);
 			rc = jpeg_read_header (cinfo, TRUE);
 			context->src_initialized = TRUE;
 			
@@ -1048,10 +1108,27 @@ gdk_pixbuf__jpeg_image_load_increment (gpointer data,
 				}
 			}
 			jpeg_calc_output_dimensions (cinfo);
-			
-			context->pixbuf = gdk_pixbuf_new (GDK_COLORSPACE_RGB, 
-							  cinfo->output_components == 4 ? TRUE : FALSE,
-							  8, 
+
+			if (cinfo->output_components == 3) {
+				has_alpha = FALSE;
+			} else if (cinfo->output_components == 4) {
+				has_alpha = TRUE;
+			} else if (cinfo->output_components == 1 &&
+				   cinfo->out_color_space == JCS_GRAYSCALE) {
+				has_alpha = FALSE;
+			} else {
+				g_set_error (error,
+					     GDK_PIXBUF_ERROR,
+					     GDK_PIXBUF_ERROR_CORRUPT_IMAGE,
+					     _("Unsupported number of color components (%d)"),
+					     cinfo->output_components);
+				retval = FALSE;
+				goto out;
+			}
+
+			context->pixbuf = gdk_pixbuf_new (GDK_COLORSPACE_RGB,
+							  has_alpha,
+							  8,
 							  cinfo->output_width,
 							  cinfo->output_height);
 
@@ -1059,9 +1136,15 @@ gdk_pixbuf__jpeg_image_load_increment (gpointer data,
                                 g_set_error_literal (error,
                                                      GDK_PIXBUF_ERROR,
                                                      GDK_PIXBUF_ERROR_INSUFFICIENT_MEMORY,
-                                                     _("Couldn't allocate memory for loading JPEG file"));
+                                                     _("Couldn’t allocate memory for loading JPEG file"));
                                 retval = FALSE;
 				goto out;
+			}
+
+			comment = jpeg_get_comment (cinfo);
+			if (comment != NULL) {
+				gdk_pixbuf_set_option (context->pixbuf, "comment", comment);
+				g_free (comment);
 			}
 
 			switch (cinfo->density_unit) {
@@ -1294,7 +1377,7 @@ real_save_jpeg (GdkPixbuf          *pixbuf,
                                        g_set_error (error,
                                                     GDK_PIXBUF_ERROR,
                                                     GDK_PIXBUF_ERROR_BAD_OPTION,
-                                                    _("JPEG quality must be a value between 0 and 100; value '%s' could not be parsed."),
+                                                    _("JPEG quality must be a value between 0 and 100; value “%s” could not be parsed."),
                                                     *viter);
 
                                        retval = FALSE;
@@ -1310,7 +1393,7 @@ real_save_jpeg (GdkPixbuf          *pixbuf,
                                        g_set_error (error,
                                                     GDK_PIXBUF_ERROR,
                                                     GDK_PIXBUF_ERROR_BAD_OPTION,
-                                                    _("JPEG quality must be a value between 0 and 100; value '%d' is not allowed."),
+                                                    _("JPEG quality must be a value between 0 and 100; value “%d” is not allowed."),
                                                     quality);
 
                                        retval = FALSE;
@@ -1331,7 +1414,7 @@ real_save_jpeg (GdkPixbuf          *pixbuf,
                                        g_set_error (error,
                                                     GDK_PIXBUF_ERROR,
                                                     GDK_PIXBUF_ERROR_BAD_OPTION,
-                                                    _("JPEG x-dpi must be a value between 1 and 65535; value '%s' is not allowed."),
+                                                    _("JPEG x-dpi must be a value between 1 and 65535; value “%s” is not allowed."),
                                                     *viter);
 
                                        retval = FALSE;
@@ -1352,7 +1435,7 @@ real_save_jpeg (GdkPixbuf          *pixbuf,
                                        g_set_error (error,
                                                     GDK_PIXBUF_ERROR,
                                                     GDK_PIXBUF_ERROR_BAD_OPTION,
-                                                    _("JPEG y-dpi must be a value between 1 and 65535; value '%s' is not allowed."),
+                                                    _("JPEG y-dpi must be a value between 1 and 65535; value “%s” is not allowed."),
                                                     *viter);
 
                                        retval = FALSE;
@@ -1366,7 +1449,7 @@ real_save_jpeg (GdkPixbuf          *pixbuf,
                                        g_set_error (error,
                                                     GDK_PIXBUF_ERROR,
                                                     GDK_PIXBUF_ERROR_BAD_OPTION,
-                                                    _("Color profile has invalid length '%u'."),
+                                                    _("Color profile has invalid length “%u”."),
                                                     (guint) icc_profile_size);
                                        retval = FALSE;
                                        goto cleanup;
@@ -1387,6 +1470,12 @@ real_save_jpeg (GdkPixbuf          *pixbuf,
        h = gdk_pixbuf_get_height (pixbuf);
        pixels = gdk_pixbuf_get_pixels (pixbuf);
 
+       /* Guaranteed by the caller. */
+       g_assert (w >= 0);
+       g_assert (h >= 0);
+       g_assert (rowstride >= 0);
+       g_assert (n_channels >= 0);
+
        /* Allocate a small buffer to convert image data,
 	* and a larger buffer if doing to_callback save.
 	*/
@@ -1395,7 +1484,7 @@ real_save_jpeg (GdkPixbuf          *pixbuf,
 	       g_set_error_literal (error,
                                     GDK_PIXBUF_ERROR,
                                     GDK_PIXBUF_ERROR_INSUFFICIENT_MEMORY,
-                                    _("Couldn't allocate memory for loading JPEG file"));
+                                    _("Couldn’t allocate memory for loading JPEG file"));
 	       retval = FALSE;
 	       goto cleanup;
        }
@@ -1405,7 +1494,7 @@ real_save_jpeg (GdkPixbuf          *pixbuf,
 		       g_set_error_literal (error,
                                             GDK_PIXBUF_ERROR,
                                             GDK_PIXBUF_ERROR_INSUFFICIENT_MEMORY,
-                                            _("Couldn't allocate memory for loading JPEG file"));
+                                            _("Couldn’t allocate memory for loading JPEG file"));
 		       retval = FALSE;
 		       goto cleanup;
 	       }
@@ -1494,11 +1583,16 @@ real_save_jpeg (GdkPixbuf          *pixbuf,
        while (cinfo.next_scanline < cinfo.image_height) {
                /* convert scanline from ARGB to RGB packed */
                for (j = 0; j < w; j++)
-                       memcpy (&(buf[j*3]), &(ptr[i*rowstride + j*n_channels]), 3);
+                       memcpy (&(buf[j*3]), &(ptr[(gsize)i*rowstride + j*n_channels]), 3);
 
                /* write scanline */
                jbuf = (JSAMPROW *)(&buf);
-               jpeg_write_scanlines (&cinfo, jbuf, 1);
+               if (jpeg_write_scanlines (&cinfo, jbuf, 1) == 0) {
+                      jpeg_destroy_compress (&cinfo);
+                      retval = FALSE;
+                      goto cleanup;
+               }
+
                i++;
                y++;
 
@@ -1537,6 +1631,16 @@ gdk_pixbuf__jpeg_image_save_to_callback (GdkPixbufSaveFunc   save_func,
 			       TRUE, NULL, save_func, user_data);
 }
 
+static gboolean
+gdk_pixbuf__jpeg_is_save_option_supported (const gchar *option_key)
+{
+        if (g_strcmp0 (option_key, "quality") == 0 ||
+            g_strcmp0 (option_key, "icc-profile") == 0)
+                return TRUE;
+
+        return FALSE;
+}
+
 #ifndef INCLUDE_jpeg
 #define MODULE_ENTRY(function) G_MODULE_EXPORT void function
 #else
@@ -1551,6 +1655,7 @@ MODULE_ENTRY (fill_vtable) (GdkPixbufModule *module)
 	module->load_increment = gdk_pixbuf__jpeg_image_load_increment;
 	module->save = gdk_pixbuf__jpeg_image_save;
 	module->save_to_callback = gdk_pixbuf__jpeg_image_save_to_callback;
+        module->is_save_option_supported = gdk_pixbuf__jpeg_is_save_option_supported;
 }
 
 MODULE_ENTRY (fill_info) (GdkPixbufFormat *info)

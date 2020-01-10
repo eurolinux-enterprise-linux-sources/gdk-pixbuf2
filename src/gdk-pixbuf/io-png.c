@@ -28,8 +28,7 @@
 #include <png.h>
 #include <math.h>
 #include "gdk-pixbuf-private.h"
-
-
+#include "fallback-c89.c"
 
 static gboolean
 setup_png_transformations(png_structp png_read_ptr, png_infop png_info_ptr,
@@ -267,6 +266,7 @@ gdk_pixbuf__png_image_load (FILE *f, GError **error)
         gchar *density_str;
         guint32 retval;
         gint compression_type;
+        gpointer ptr;
 
 #ifdef PNG_USER_MEM_SUPPORTED
 	png_ptr = png_create_read_struct_2 (PNG_LIBPNG_VER_STRING,
@@ -312,22 +312,21 @@ gdk_pixbuf__png_image_load (FILE *f, GError **error)
         pixbuf = gdk_pixbuf_new (GDK_COLORSPACE_RGB, ctype & PNG_COLOR_MASK_ALPHA, 8, w, h);
 
 	if (!pixbuf) {
-                if (error && *error == NULL) {
-                        g_set_error_literal (error,
-                                             GDK_PIXBUF_ERROR,
-                                             GDK_PIXBUF_ERROR_INSUFFICIENT_MEMORY,
-                                             _("Insufficient memory to load PNG file"));
-                }
-                
+                g_set_error_literal (error,
+                                     GDK_PIXBUF_ERROR,
+                                     GDK_PIXBUF_ERROR_INSUFFICIENT_MEMORY,
+                                     _("Insufficient memory to load PNG file"));
 
 		png_destroy_read_struct (&png_ptr, &info_ptr, NULL);
 		return NULL;
 	}
 
+        gdk_pixbuf_fill (pixbuf, DEFAULT_FILL_COLOR);
+
 	rows = g_new (png_bytep, h);
 
-	for (i = 0; i < h; i++)
-		rows[i] = pixbuf->pixels + i * pixbuf->rowstride;
+        for (i = 0, ptr = pixbuf->pixels; i < h; i++, ptr = (guchar *) ptr + pixbuf->rowstride)
+		rows[i] = ptr;
 
 	png_read_image (png_ptr, rows);
         png_read_end (png_ptr, info_ptr);
@@ -524,11 +523,9 @@ gdk_pixbuf__png_image_stop_load (gpointer context, GError **error)
         if (lc->pixbuf)
                 g_object_unref (lc->pixbuf);
         else {
-                if (error && *error == NULL) {
-                        g_set_error_literal (error, GDK_PIXBUF_ERROR,
-                                             GDK_PIXBUF_ERROR_CORRUPT_IMAGE,
-                                             _("Premature end-of-file encountered"));
-                }
+                g_set_error_literal (error, GDK_PIXBUF_ERROR,
+                                     GDK_PIXBUF_ERROR_CORRUPT_IMAGE,
+                                     _("Premature end-of-file encountered"));
                 retval = FALSE;
 	}
         
@@ -663,12 +660,10 @@ png_info_callback   (png_structp png_read_ptr,
                 
                 if (w == 0 || h == 0) {
                         lc->fatal_error_occurred = TRUE;
-                        if (lc->error && *lc->error == NULL) {
-                                g_set_error_literal (lc->error,
-                                                     GDK_PIXBUF_ERROR,
-                                                     GDK_PIXBUF_ERROR_FAILED,
-                                                     _("Transformed PNG has zero width or height."));
-                        }
+                        g_set_error_literal (lc->error,
+                                             GDK_PIXBUF_ERROR,
+                                             GDK_PIXBUF_ERROR_FAILED,
+                                             _("Transformed PNG has zero width or height."));
                         return;
                 }
         }
@@ -678,15 +673,15 @@ png_info_callback   (png_structp png_read_ptr,
         if (lc->pixbuf == NULL) {
                 /* Failed to allocate memory */
                 lc->fatal_error_occurred = TRUE;
-                if (lc->error && *lc->error == NULL) {
-                        g_set_error (lc->error,
-                                     GDK_PIXBUF_ERROR,
-                                     GDK_PIXBUF_ERROR_INSUFFICIENT_MEMORY,
-                                     _("Insufficient memory to store a %lu by %lu image; try exiting some applications to reduce memory usage"),
-                                     (gulong) width, (gulong) height);
-                }
+                g_set_error (lc->error,
+                             GDK_PIXBUF_ERROR,
+                             GDK_PIXBUF_ERROR_INSUFFICIENT_MEMORY,
+                             _("Insufficient memory to store a %lu by %lu image; try exiting some applications to reduce memory usage"),
+                             (gulong) width, (gulong) height);
                 return;
         }
+
+        gdk_pixbuf_fill (lc->pixbuf, DEFAULT_FILL_COLOR);
 
         /* Extract text chunks and attach them as pixbuf options */
         
@@ -745,6 +740,7 @@ png_row_callback   (png_structp png_read_ptr,
 {
         LoadContext* lc;
         guchar* old_row = NULL;
+        gsize rowstride;
 
         lc = png_get_progressive_ptr(png_read_ptr);
 
@@ -753,12 +749,10 @@ png_row_callback   (png_structp png_read_ptr,
 
         if (row_num >= lc->pixbuf->height) {
                 lc->fatal_error_occurred = TRUE;
-                if (lc->error && *lc->error == NULL) {
-                        g_set_error_literal (lc->error,
-                                             GDK_PIXBUF_ERROR,
-                                             GDK_PIXBUF_ERROR_CORRUPT_IMAGE,
-                                             _("Fatal error reading PNG image file"));
-                }
+                g_set_error_literal (lc->error,
+                                     GDK_PIXBUF_ERROR,
+                                     GDK_PIXBUF_ERROR_CORRUPT_IMAGE,
+                                     _("Fatal error reading PNG image file"));
                 return;
         }
 
@@ -770,8 +764,9 @@ png_row_callback   (png_structp png_read_ptr,
         lc->max_row_seen_in_chunk = MAX(lc->max_row_seen_in_chunk, ((gint)row_num));
         lc->last_row_seen_in_chunk = row_num;
         lc->last_pass_seen_in_chunk = pass_num;
-        
-        old_row = lc->pixbuf->pixels + (row_num * lc->pixbuf->rowstride);
+
+        rowstride = lc->pixbuf->rowstride;
+        old_row = lc->pixbuf->pixels + (row_num * rowstride);
 
         png_progressive_combine_row(lc->png_read_ptr, old_row, new_row);
 }
@@ -934,7 +929,7 @@ static gboolean real_save_png (GdkPixbuf        *pixbuf,
                                        g_set_error (error,
                                                     GDK_PIXBUF_ERROR,
                                                     GDK_PIXBUF_ERROR_BAD_OPTION,
-                                                    _("PNG compression level must be a value between 0 and 9; value '%s' could not be parsed."),
+                                                    _("PNG compression level must be a value between 0 and 9; value “%s” could not be parsed."),
                                                     *viter);
                                        success = FALSE;
                                        goto cleanup;
@@ -947,7 +942,7 @@ static gboolean real_save_png (GdkPixbuf        *pixbuf,
                                        g_set_error (error,
                                                     GDK_PIXBUF_ERROR,
                                                     GDK_PIXBUF_ERROR_BAD_OPTION,
-                                                    _("PNG compression level must be a value between 0 and 9; value '%d' is not allowed."),
+                                                    _("PNG compression level must be a value between 0 and 9; value “%d” is not allowed."),
                                                     compression);
                                        success = FALSE;
                                        goto cleanup;
@@ -966,7 +961,7 @@ static gboolean real_save_png (GdkPixbuf        *pixbuf,
                                        g_set_error (error,
                                                     GDK_PIXBUF_ERROR,
                                                     GDK_PIXBUF_ERROR_BAD_OPTION,
-                                                    _("PNG x-dpi must be greater than zero; value '%s' is not allowed."),
+                                                    _("PNG x-dpi must be greater than zero; value “%s” is not allowed."),
                                                     *viter);
 
                                        success = FALSE;
@@ -986,7 +981,7 @@ static gboolean real_save_png (GdkPixbuf        *pixbuf,
                                        g_set_error (error,
                                                     GDK_PIXBUF_ERROR,
                                                     GDK_PIXBUF_ERROR_BAD_OPTION,
-                                                    _("PNG y-dpi must be greater than zero; value '%s' is not allowed."),
+                                                    _("PNG y-dpi must be greater than zero; value “%s” is not allowed."),
                                                     *viter);
 
                                        success = FALSE;
@@ -1053,6 +1048,11 @@ static gboolean real_save_png (GdkPixbuf        *pixbuf,
        rowstride = gdk_pixbuf_get_rowstride (pixbuf);
        has_alpha = gdk_pixbuf_get_has_alpha (pixbuf);
        pixels = gdk_pixbuf_get_pixels (pixbuf);
+
+       /* Guaranteed by the caller. */
+       g_assert (w >= 0);
+       g_assert (h >= 0);
+       g_assert (rowstride >= 0);
 
        png_ptr = png_create_write_struct (PNG_LIBPNG_VER_STRING,
                                           error,
@@ -1123,11 +1123,9 @@ static gboolean real_save_png (GdkPixbuf        *pixbuf,
        png_set_shift (png_ptr, &sig_bit);
        png_set_packing (png_ptr);
 
-       ptr = pixels;
-       for (y = 0; y < h; y++) {
+       for (y = 0, ptr = pixels; y < h; y++, ptr += rowstride) {
                row_ptr = (png_bytep)ptr;
                png_write_rows (png_ptr, &row_ptr, 1);
-               ptr += rowstride;
        }
 
        png_write_end (png_ptr, info_ptr);
@@ -1170,6 +1168,19 @@ gdk_pixbuf__png_image_save_to_callback (GdkPixbufSaveFunc   save_func,
                               TRUE, NULL, save_func, user_data);
 }
 
+static gboolean
+gdk_pixbuf__png_is_save_option_supported (const gchar *option_key)
+{
+        if (g_strcmp0 (option_key, "compression") == 0 ||
+            g_strcmp0 (option_key, "icc-profile") == 0 ||
+            g_strcmp0 (option_key, "x-dpi") == 0 ||
+            g_strcmp0 (option_key, "y-dpi") == 0 ||
+            strncmp (option_key, "tEXt::", 6) == 0)
+                return TRUE;
+
+        return FALSE;
+}
+
 #ifndef INCLUDE_png
 #define MODULE_ENTRY(function) G_MODULE_EXPORT void function
 #else
@@ -1184,6 +1195,7 @@ MODULE_ENTRY (fill_vtable) (GdkPixbufModule *module)
         module->load_increment = gdk_pixbuf__png_image_load_increment;
         module->save = gdk_pixbuf__png_image_save;
         module->save_to_callback = gdk_pixbuf__png_image_save_to_callback;
+        module->is_save_option_supported = gdk_pixbuf__png_is_save_option_supported;
 }
 
 MODULE_ENTRY (fill_info) (GdkPixbufFormat *info)

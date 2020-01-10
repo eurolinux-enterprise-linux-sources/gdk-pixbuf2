@@ -257,16 +257,32 @@ int main (int argc, char **argv)
         GString *contents;
         gchar *cache_file = NULL;
         gint first_file = 1;
+        GFile *pixbuf_libdir_file;
+        gchar *pixbuf_libdir;
+
+        /* An intermediate GFile here will convert all the path separators
+         * to the right one used by the platform
+         */
+        pixbuf_libdir_file = g_file_new_for_path (PIXBUF_LIBDIR);
+        pixbuf_libdir = g_file_get_path (pixbuf_libdir_file);
+        g_object_unref (pixbuf_libdir_file);
 
 #ifdef G_OS_WIN32
         gchar *libdir;
-        gchar *runtime_prefix;
-        gchar *slash;
+        GFile *pixbuf_prefix_file;
+        gchar *pixbuf_prefix;
 
-        if (g_ascii_strncasecmp (PIXBUF_LIBDIR, GDK_PIXBUF_PREFIX, strlen (GDK_PIXBUF_PREFIX)) == 0 &&
-            G_IS_DIR_SEPARATOR (PIXBUF_LIBDIR[strlen (GDK_PIXBUF_PREFIX)])) {
-                /* GDK_PIXBUF_PREFIX is a prefix of PIXBUF_LIBDIR, as it
-                 * normally is. Replace that prefix in PIXBUF_LIBDIR
+        pixbuf_prefix_file = g_file_new_for_path (GDK_PIXBUF_PREFIX);
+        pixbuf_prefix = g_file_get_path (pixbuf_prefix_file);
+        g_object_unref (pixbuf_prefix_file);
+
+        if (g_ascii_strncasecmp (pixbuf_libdir, pixbuf_prefix, strlen (pixbuf_prefix)) == 0 &&
+            G_IS_DIR_SEPARATOR (pixbuf_libdir[strlen (pixbuf_prefix)])) {
+                gchar *runtime_prefix;
+                gchar *slash;
+
+                /* pixbuf_prefix is a prefix of pixbuf_libdir, as it
+                 * normally is. Replace that prefix in pixbuf_libdir
                  * with the installation directory on this machine.
                  * We assume this invokation of
                  * gdk-pixbuf-query-loaders is run from either a "bin"
@@ -288,26 +304,28 @@ int main (int argc, char **argv)
                 if (slash == NULL ||
                     g_ascii_strcasecmp (slash + 1, ".libs") == 0 ||
                     g_ascii_strcasecmp (slash + 1, "gdk-pixbuf") == 0) {
-                        libdir = PIXBUF_LIBDIR;
+                        libdir = NULL;
                 }
                 else {
                         if (slash != NULL && g_ascii_strcasecmp (slash + 1, "bin") == 0) {
                                 *slash = '\0';
                         }
 
-                        libdir = g_strconcat (runtime_prefix,
-                                              "/",
-                                              PIXBUF_LIBDIR + strlen (GDK_PIXBUF_PREFIX) + 1,
-                                              NULL);
+                        libdir = g_build_filename (runtime_prefix,
+                                                   pixbuf_libdir + strlen (pixbuf_prefix) + 1,
+                                                   NULL);
                 }
         }
         else {
-                libdir = PIXBUF_LIBDIR;
+                libdir = NULL;
         }
 
-#undef PIXBUF_LIBDIR
-#define PIXBUF_LIBDIR libdir
+        g_free (pixbuf_prefix);
 
+        if (libdir != NULL) {
+                g_free (pixbuf_libdir);
+                pixbuf_libdir = libdir;
+        }
 #endif
 
 	/* This call is necessary to ensure we actually link against libgobject;
@@ -339,20 +357,29 @@ int main (int argc, char **argv)
 
         if (argc == first_file) {
 #ifdef USE_GMODULE
-                const char *path;
+                char *moduledir;
                 GDir *dir;
+                GList *l, *modules;
 
-                path = g_getenv ("GDK_PIXBUF_MODULEDIR");
+                moduledir = g_strdup (g_getenv ("GDK_PIXBUF_MODULEDIR"));
 #ifdef G_OS_WIN32
-                if (path != NULL && *path != '\0')
-                        path = g_locale_to_utf8 (path, -1, NULL, NULL, NULL);
+                if (moduledir != NULL && *moduledir != '\0') {
+                        gchar *path;
+
+                        path = g_locale_to_utf8 (moduledir, -1, NULL, NULL, NULL);
+                        g_free (moduledir);
+                        moduledir = path;
+                }
 #endif
-                if (path == NULL || *path == '\0')
-                        path = PIXBUF_LIBDIR;
+                if (moduledir == NULL || *moduledir == '\0') {
+                        g_free (moduledir);
+                        moduledir = g_strdup (pixbuf_libdir);
+                }
 
-                g_string_append_printf (contents, "# LoaderDir = %s\n#\n", path);
+                g_string_append_printf (contents, "# LoaderDir = %s\n#\n", moduledir);
 
-                dir = g_dir_open (path, 0, NULL);
+                modules = NULL;
+                dir = g_dir_open (moduledir, 0, NULL);
                 if (dir) {
                         const char *dent;
 
@@ -360,11 +387,17 @@ int main (int argc, char **argv)
                                 gint len = strlen (dent);
                                 if (len > SOEXT_LEN &&
                                     strcmp (dent + len - SOEXT_LEN, SOEXT) == 0) {
-                                        query_module (contents, path, dent);
+                                        modules = g_list_prepend (modules,
+                                                                  g_strdup (dent));
                                 }
                         }
                         g_dir_close (dir);
                 }
+                modules = g_list_sort (modules, (GCompareFunc)strcmp);
+                for (l = modules; l != NULL; l = l->next)
+                        query_module (contents, moduledir, l->data);
+                g_list_free_full (modules, g_free);
+                g_free (moduledir);
 #else
                 g_string_append_printf (contents, "# dynamic loading of modules not supported\n");
 #endif
@@ -393,6 +426,8 @@ int main (int argc, char **argv)
         }
         else
                 g_print ("%s\n", contents->str);
+
+        g_free (pixbuf_libdir);
 
         return 0;
 }

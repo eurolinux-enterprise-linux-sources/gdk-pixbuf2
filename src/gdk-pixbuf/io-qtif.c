@@ -421,7 +421,7 @@ static gboolean gdk_pixbuf__qtif_image_load_increment (gpointer data,
         switch(context->state)
         {
         case STATE_READY:
-            /* Abort if we have seen too mant atoms. */
+            /* Abort if we have seen too many atoms. */
             if(context->atom_count == 0u)
             {
                 g_set_error_literal (error, GDK_PIXBUF_ERROR,
@@ -432,7 +432,7 @@ static gboolean gdk_pixbuf__qtif_image_load_increment (gpointer data,
             context->atom_count--;
 
             /* Copy to header buffer in context, in case supplied data is not enough. */
-            while(context->run_length < sizeof(QtHeader))
+            while (context->run_length < sizeof(QtHeader) && size > 0u)
             {
                 context->header_buffer[context->run_length] = *buf;
                 context->run_length++;

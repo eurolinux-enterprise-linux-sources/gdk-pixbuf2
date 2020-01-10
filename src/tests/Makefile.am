@@ -1,5 +1,7 @@
 include $(top_srcdir)/glib-tap.mk
 
+.NOTPARALLEL:
+
 AM_CPPFLAGS =				\
 	-I$(top_srcdir)			\
 	-I$(top_srcdir)/gdk-pixbuf	\
@@ -18,31 +20,38 @@ LDADD = \
 
 noinst_PROGRAMS += 			\
 	pixbuf-read			\
-	pixbuf-lowmem			\
 	pixbuf-random			\
+	pixbuf-lowmem			\
+	pixbuf-save-ref			\
 	$(NULL)
 
 test_programs = 			\
 	animation			\
 	cve-2015-4491			\
+	pixbuf-fail			\
 	pixbuf-icon-serialize 		\
 	pixbuf-randomly-modified	\
 	pixbuf-threads			\
 	pixbuf-icc			\
 	pixbuf-jpeg			\
 	pixbuf-dpi			\
+	pixbuf-pixdata			\
 	pixbuf-stream			\
+	pixbuf-reftest			\
 	pixbuf-resource			\
 	pixbuf-scale			\
+	pixbuf-scale-two-step		\
 	pixbuf-short-gif-write		\
 	pixbuf-save			\
 	pixbuf-readonly-to-mutable	\
 	pixbuf-composite		\
+	pixbuf-area-updated		\
 	$(NULL)
 
 dist_installed_test_data =		\
 	test-image.png			\
 	test-animation.gif		\
+	1_partyanimsm2.gif		\
 	test-animation.ani		\
 	icc-profile.jpeg		\
 	icc-profile.png			\
@@ -51,12 +60,39 @@ dist_installed_test_data =		\
 	dpi.tiff			\
 	premature-end.png		\
 	premature-end.jpg		\
+	bug143608-comment.jpg		\
 	bug725582-testrotate.jpg	\
 	bug725582-testrotate.png	\
-	$(wildcard $(srcdir)/test-images/*)
+	cve-2015-4491.bmp		\
+	large.png			\
+	large.jpg			\
+	bug775218.jpg			\
+	test-image.pixdata		\
+	test-image-rle.pixdata		\
+	bug775693.pixdata		\
+	aero.gif			\
+	$(wildcard $(srcdir)/test-images/fail/*) \
+	$(wildcard $(srcdir)/test-images/randomly-modified/*) \
+	$(wildcard $(srcdir)/test-images/reftests/*.*) \
+	$(wildcard $(srcdir)/test-images/reftests/tga/*) \
+	$(NULL)
+
+pixbuf_area_updated_SOURCES =		\
+	pixbuf-area-updated.c		\
+	test-common.c			\
+	test-common.h			\
+	$(NULL)
+
+pixbuf_randomly_modified_SOURCES =	\
+	pixbuf-randomly-modified.c	\
+	test-common.c			\
+	test-common.h			\
+	$(NULL)
 
 cve_2015_4491_SOURCES =			\
 	cve-2015-4491.c			\
+	test-common.c			\
+	test-common.h			\
 	resources.h			\
 	resources.c			\
 	$(NULL)
@@ -73,8 +109,20 @@ pixbuf_dpi_SOURCES = 			\
 	test-common.h			\
 	$(NULL)
 
+pixbuf_fail_SOURCES =			\
+	pixbuf-fail.c			\
+	test-common.c			\
+	test-common.h			\
+	$(NULL)
+
 pixbuf_scale_SOURCES = 			\
 	pixbuf-scale.c			\
+	test-common.c			\
+	test-common.h			\
+	$(NULL)
+
+pixbuf_scale_two_step_SOURCES =		\
+	pixbuf-scale-two-step.c		\
 	test-common.c			\
 	test-common.h			\
 	$(NULL)
@@ -103,13 +151,19 @@ pixbuf_save_SOURCES =			\
 	test-common.h			\
 	$(NULL)
 
+pixbuf_reftest_SOURCES =		\
+	pixbuf-reftest.c		\
+	test-common.c			\
+	test-common.h			\
+	$(NULL)
+
 pixbuf_jpeg_SOURCES =			\
 	pixbuf-jpeg.c			\
 	test-common.c			\
 	test-common.h			\
 	$(NULL)
 
-pixbuf_short_git_write_SOURCES =	\
+pixbuf_short_gif_write_SOURCES =	\
 	pixbuf-short-gif-write.c
 
 pixbuf_readonly_to_mutable_SOURCES =	\
@@ -126,6 +180,14 @@ pixbuf_composite_SOURCES =		\
 
 pixbuf_resource_SOURCES = 		\
 	pixbuf-resource.c		\
+	test-common.c			\
+	test-common.h			\
+	resources.h			\
+	resources.c			\
+	$(NULL)
+
+pixbuf_pixdata_SOURCES =		\
+	pixbuf-pixdata.c		\
 	test-common.c			\
 	test-common.h			\
 	resources.h			\

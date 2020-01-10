@@ -51,7 +51,7 @@ gdk_pixbuf__gdip_image_save_JPEG_to_callback (GdkPixbufSaveFunc   save_func,
           g_set_error (error,
                        GDK_PIXBUF_ERROR,
                        GDK_PIXBUF_ERROR_BAD_OPTION,
-                       _("JPEG quality must be a value between 0 and 100; value '%s' could not be parsed."),
+                       _("JPEG quality must be a value between 0 and 100; value “%s” could not be parsed."),
                        *viter);
           
           return FALSE;
@@ -66,7 +66,7 @@ gdk_pixbuf__gdip_image_save_JPEG_to_callback (GdkPixbufSaveFunc   save_func,
           g_set_error (error,
                        GDK_PIXBUF_ERROR,
                        GDK_PIXBUF_ERROR_BAD_OPTION,
-                       _("JPEG quality must be a value between 0 and 100; value '%d' is not allowed."),
+                       _("JPEG quality must be a value between 0 and 100; value “%d” is not allowed."),
                        (int)quality);
           
           return FALSE;
@@ -99,6 +99,15 @@ gdk_pixbuf__gdip_image_save_JPEG (FILE         *f,
   return gdk_pixbuf__gdip_image_save_JPEG_to_callback (gdip_save_to_file_callback, f, pixbuf, keys, values, error);
 }
 
+static gboolean
+gdk_pixbuf__gdip_is_save_option_supported_JPEG (const gchar *option_key)
+{
+  if (g_strcmp0 (option_key, "quality") == 0)
+    return TRUE;
+
+  return FALSE;
+}
+
 #ifndef INCLUDE_gdiplus
 #define MODULE_ENTRY(function) G_MODULE_EXPORT void function
 #else
@@ -111,6 +120,7 @@ MODULE_ENTRY (fill_vtable) (GdkPixbufModule *module)
 
   module->save_to_callback = gdk_pixbuf__gdip_image_save_JPEG_to_callback;
   module->save = gdk_pixbuf__gdip_image_save_JPEG; /* for gtk < 2.14, you need to implement both. otherwise gdk-pixbuf-queryloaders fails */
+  module->is_save_option_supported = gdk_pixbuf__gdip_is_save_option_supported_JPEG;
 }
 
 MODULE_ENTRY (fill_info) (GdkPixbufFormat *info)

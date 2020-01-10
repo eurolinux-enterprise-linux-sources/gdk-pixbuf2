@@ -10,8 +10,6 @@ no_undefined = -no-undefined
 endif
 
 if OS_WIN32
-gdk_pixbuf_def = gdk_pixbuf.def
-gdk_pixbuf_symbols = -export-symbols $(srcdir)/gdk_pixbuf.def
 
 gdk_pixbuf_win32_res = gdk_pixbuf-win32-res.o
 gdk_pixbuf_win32_res_ldflag = -Wl,gdk_pixbuf-win32-res.o
@@ -20,39 +18,6 @@ libole32 = -lole32
 
 gdk_pixbuf-win32-res.o : gdk_pixbuf.rc
 	$(AM_V_GEN)$(WINDRES) gdk_pixbuf.rc $@
-
-install-def-file:
-	$(INSTALL) $(srcdir)/gdk_pixbuf.def $(DESTDIR)$(libdir)/gdk_pixbuf-$(GDK_PIXBUF_API_VERSION).def
-uninstall-def-file:
-	-rm $(DESTDIR)$(libdir)/gdk_pixbuf-$(GDK_PIXBUF_API_VERSION).def
-else
-install-def-file:
-uninstall-def-file:
-endif
-
-if MS_LIB_AVAILABLE
-noinst_DATA = gdk_pixbuf-$(GDK_PIXBUF_API_VERSION).lib
-
-gdk_pixbuf-$(GDK_PIXBUF_API_VERSION).lib: libgdk_pixbuf-$(GDK_PIXBUF_API_VERSION).la gdk_pixbuf.def
-	lib -machine:@LIB_EXE_MACHINE_FLAG@ -name:libgdk_pixbuf-$(GDK_PIXBUF_API_VERSION)-@LT_CURRENT_MINUS_AGE@.dll -def:gdk_pixbuf.def -out:$@
-
-install-ms-lib:
-	$(INSTALL) gdk_pixbuf-$(GDK_PIXBUF_API_VERSION).lib $(DESTDIR)$(libdir)
-
-uninstall-ms-lib:
-	-rm $(DESTDIR)$(libdir)/gdk_pixbuf-$(GDK_PIXBUF_API_VERSION).lib
-else
-install-ms-lib:
-uninstall-ms-lib:
-endif
-
-# This places the generated .def file in srcdir, since it is expected to be there.
-# (The one from a tarball is)
-gdk_pixbuf.def: gdk-pixbuf.symbols
-	$(AM_V_GEN)(echo -e EXPORTS; $(CPP) -P -DINCLUDE_VARIABLES -DG_OS_WIN32 -DALL_FILES - <$(srcdir)/gdk-pixbuf.symbols | sed -e '/^$$/d' -e 's/^/	/' -e 's/G_GNUC_[^ ]*//g') > $(srcdir)/gdk_pixbuf.def
-
-if OS_LINUX
-TESTS = abicheck.sh
 endif
 
 lib_LTLIBRARIES = libgdk_pixbuf-2.0.la
@@ -76,19 +41,6 @@ libstatic_pixbufloader_bmp_la_SOURCES = io-bmp.c
 libpixbufloader_bmp_la_SOURCES = io-bmp.c
 libpixbufloader_bmp_la_LDFLAGS = -avoid-version -module $(no_undefined)
 libpixbufloader_bmp_la_LIBADD = $(module_libs)
-
-#
-# The WBMP loader
-#
-libstatic_pixbufloader_wbmp_la_SOURCES = io-wbmp.c
-libpixbufloader_wbmp_la_SOURCES = io-wbmp.c
-libpixbufloader_wbmp_la_LDFLAGS = -avoid-version -module $(no_undefined)
-libpixbufloader_wbmp_la_LIBADD = $(module_libs)
-
-#
-# The GdkPixdata loader, always built in
-#
-libstatic_pixbufloader_pixdata_la_SOURCES = io-pixdata.c
 
 #
 # The GIF loader
@@ -131,20 +83,12 @@ libpixbufloader_pnm_la_LDFLAGS = -avoid-version -module $(no_undefined)
 libpixbufloader_pnm_la_LIBADD = $(module_libs)
 
 #
-# The RAS loader
-#
-libstatic_pixbufloader_ras_la_SOURCES = io-ras.c
-libpixbufloader_ras_la_SOURCES = io-ras.c
-libpixbufloader_ras_la_LDFLAGS = -avoid-version -module $(no_undefined)
-libpixbufloader_ras_la_LIBADD = $(module_libs)
-
-#
 # The TIFF loader
 #
 libstatic_pixbufloader_tiff_la_SOURCES = io-tiff.c
 libpixbufloader_tiff_la_SOURCES = io-tiff.c
 libpixbufloader_tiff_la_LDFLAGS = -avoid-version -module $(no_undefined)
-libpixbufloader_tiff_la_LIBADD = $(LIBTIFF) $(module_libs)
+libpixbufloader_tiff_la_LIBADD = $(TIFF_LIBS) $(module_libs)
 
 #
 # The XPM loader
@@ -165,8 +109,8 @@ libpixbufloader_xbm_la_LIBADD = $(module_libs)
 #
 # The TGA loader
 #
-libstatic_pixbufloader_tga_la_SOURCES = io-tga.c
-libpixbufloader_tga_la_SOURCES = io-tga.c
+libstatic_pixbufloader_tga_la_SOURCES = io-tga.c gdk-pixbuf-buffer-queue.c
+libpixbufloader_tga_la_SOURCES = io-tga.c gdk-pixbuf-buffer-queue.c
 libpixbufloader_tga_la_LDFLAGS = -avoid-version -module $(no_undefined)
 libpixbufloader_tga_la_LIBADD = $(module_libs)
 
@@ -177,14 +121,6 @@ libstatic_pixbufloader_icns_la_SOURCES = io-icns.c
 libpixbufloader_icns_la_SOURCES = io-icns.c
 libpixbufloader_icns_la_LDFLAGS = -avoid-version -module $(no_undefined)
 libpixbufloader_icns_la_LIBADD = $(module_libs)
-
-#
-# The PCX loader
-#
-libstatic_pixbufloader_pcx_la_SOURCES = io-pcx.c
-libpixbufloader_pcx_la_SOURCES = io-pcx.c
-libpixbufloader_pcx_la_LDFLAGS = -avoid-version -module $(no_undefined)
-libpixbufloader_pcx_la_LIBADD = $(module_libs)
 
 #
 # The JPEG2000 loader
@@ -393,12 +329,6 @@ PNG_LIB = libpixbufloader-png.la
 endif
 endif
 
-if INCLUDE_WBMP
-STATIC_WBMP_LIB = libstatic-pixbufloader-wbmp.la
-else
-WBMP_LIB = libpixbufloader-wbmp.la
-endif
-
 if INCLUDE_ANI
 STATIC_ANI_LIB = libstatic-pixbufloader-ani.la
 else
@@ -409,12 +339,6 @@ if INCLUDE_PNM
 STATIC_PNM_LIB = libstatic-pixbufloader-pnm.la
 else
 PNM_LIB = libpixbufloader-pnm.la
-endif
-
-if INCLUDE_RAS
-STATIC_RAS_LIB = libstatic-pixbufloader-ras.la
-else
-RAS_LIB = libpixbufloader-ras.la
 endif
 
 if INCLUDE_XPM
@@ -433,12 +357,6 @@ if INCLUDE_TGA
 STATIC_TGA_LIB = libstatic-pixbufloader-tga.la
 else
 TGA_LIB = libpixbufloader-tga.la
-endif
-
-if INCLUDE_PCX
-STATIC_PCX_LIB = libstatic-pixbufloader-pcx.la
-else
-PCX_LIB = libpixbufloader-pcx.la
 endif
 
 if INCLUDE_ICNS
@@ -461,27 +379,21 @@ else
 QTIF_LIB = libpixbufloader-qtif.la
 endif
 
-# Always included
-STATIC_PIXDATA_LIB = libstatic-pixbufloader-pixdata.la
-
 if BUILD_DYNAMIC_MODULES
 
 loader_LTLIBRARIES = 	\
 	$(PNG_LIB)	\
 	$(BMP_LIB)	\
-	$(WBMP_LIB)	\
 	$(GIF_LIB)	\
 	$(ICO_LIB)	\
 	$(ANI_LIB)	\
 	$(JPEG_LIB)	\
 	$(PNM_LIB)	\
-	$(RAS_LIB)	\
 	$(TIFF_LIB)	\
 	$(XPM_LIB)	\
 	$(XBM_LIB)	\
 	$(TGA_LIB)	\
 	$(ICNS_LIB)	\
-	$(PCX_LIB)	\
 	$(JASPER_LIB)	\
 	$(QTIF_LIB)	\
 	$(GDIPLUS_LIBS)
@@ -493,19 +405,16 @@ noinst_LTLIBRARIES =		\
 	$(STATIC_PIXDATA_LIB)	\
 	$(STATIC_PNG_LIB)	\
 	$(STATIC_BMP_LIB)	\
-	$(STATIC_WBMP_LIB)	\
 	$(STATIC_GIF_LIB)	\
 	$(STATIC_ICO_LIB)	\
 	$(STATIC_ANI_LIB)	\
 	$(STATIC_JPEG_LIB)	\
 	$(STATIC_PNM_LIB)	\
-	$(STATIC_RAS_LIB)	\
 	$(STATIC_TIFF_LIB)	\
 	$(STATIC_XPM_LIB)	\
 	$(STATIC_XBM_LIB)	\
 	$(STATIC_TGA_LIB)	\
 	$(STATIC_ICNS_LIB)	\
-	$(STATIC_PCX_LIB)	\
 	$(STATIC_JASPER_LIB)	\
 	$(STATIC_QTIF_LIB)	\
 	$(STATIC_GDIPLUS_LIBS)
@@ -563,7 +472,12 @@ libgdk_pixbuf_2_0_la_SOURCES =   \
 	gdk-pixbuf-scaled-anim.c \
 	gdk-pixbuf-util.c	 \
 	gdk-pixdata.c		 \
-	gdk-pixbuf-enum-types.c
+	gdk-pixbuf-enum-types.c  \
+	gdk-pixbuf-marshal.c
+
+libgdk_pixbuf_2_0_la_CFLAGS =			\
+	$(AM_CPPFLAGS)				\
+	$(GDK_PIXBUF_HIDDEN_VISIBILITY_CFLAGS)
 
 libgdk_pixbuf_2_0_la_LDFLAGS = \
 	$(GDK_PIXBUF_LINK_FLAGS)		\
@@ -571,7 +485,6 @@ libgdk_pixbuf_2_0_la_LDFLAGS = \
 	-version-info $(LT_VERSION_INFO)	\
 	$(LIBTOOL_EXPORT_OPTIONS)		\
 	$(no_undefined)				\
-	$(gdk_pixbuf_symbols)			\
 	$(gdiplus_ldflag)
 
 
@@ -593,10 +506,12 @@ libgdk_pixbufinclude_HEADERS =  	\
 	gdk-pixbuf-enum-types.h		\
 	gdk-pixbuf-marshal.h		\
 	gdk-pixbuf-features.h		\
-	gdk-pixdata.h
+	gdk-pixdata.h			\
+	gdk-pixbuf-macros.h
 
 noinst_HEADERS = 		\
 	gdk-pixbuf-private.h	\
+	gdk-pixbuf-buffer-queue-private.h \
 	gdk-pixbuf-scaled-anim.h \
 	xpm-color-table.h
 
@@ -675,48 +590,36 @@ distclean-local:
 EXTRA_DIST =					\
         gdk-pixbuf-csource.1			\
 	makefile.msc				\
-	gdk-pixbuf.symbols			\
-	abicheck.sh				\
-	gdk_pixbuf.def				\
 	gdk_pixbuf.rc				\
 	gdk-pixbuf-marshal.c			\
 	gdk-pixbuf-marshal.list			\
 	gdk-pixbuf-enum-types.c.template	\
 	gdk-pixbuf-enum-types.h.template	\
-	gen-color-table.pl			\
-	gdiplus.def
-	
-dist-hook: ../build/win32/vs9/gdk-pixbuf.vcproj ../build/win32/vs10/gdk-pixbuf.vcxproj ../build/win32/vs10/gdk-pixbuf.vcxproj.filters
+	gdiplus.def				\
+	fallback-c89.c
 
-../build/win32/vs9/gdk-pixbuf.vcproj: ../build/win32/vs9/gdk-pixbuf.vcprojin
-	for F in $(libgdk_pixbuf_2_0_la_SOURCES); do \
-		case $$F in \
-		*.c) echo '   <File RelativePath="..\..\..\gdk-pixbuf\'$$F'" />' \
-		     ;; \
-		esac; \
-	done >libgdkpixbuf.sourcefiles
-	$(CPP) -P - <$(top_srcdir)/build/win32/vs9/gdk-pixbuf.vcprojin >$@
-	rm libgdkpixbuf.sourcefiles
-	
-../build/win32/vs10/gdk-pixbuf.vcxproj: ../build/win32/vs10/gdk-pixbuf.vcxprojin
-	for F in $(libgdk_pixbuf_2_0_la_SOURCES); do \
-		case $$F in \
-		*.c) echo '    <ClCompile Include="..\..\..\gdk-pixbuf\'$$F'" />' \
-		     ;; \
-		esac; \
-	done >libgdkpixbuf.vs10.sourcefiles
-	$(CPP) -P - <$(top_srcdir)/build/win32/vs10/gdk-pixbuf.vcxprojin >$@
-	rm libgdkpixbuf.vs10.sourcefiles
-	
-../build/win32/vs10/gdk-pixbuf.vcxproj.filters: ../build/win32/vs10/gdk-pixbuf.vcxproj.filtersin
-	for F in $(libgdk_pixbuf_2_0_la_SOURCES); do \
-		case $$F in \
-		*.c) echo '    <ClCompile Include="..\..\..\gdk-pixbuf\'$$F'"><Filter>Source Files</Filter></ClCompile>' \
-		     ;; \
-		esac; \
-	done >libgdkpixbuf.vs10.sourcefiles.filters
-	$(CPP) -P - <$(top_srcdir)/build/win32/vs10/gdk-pixbuf.vcxproj.filtersin >$@
-	rm libgdkpixbuf.vs10.sourcefiles.filters
+# ---------- MSVC Items ------------------
+
+MSVCPROJS = gdk-pixbuf
+
+gdk_pixbuf_FILES = \
+	$(libgdk_pixbuf_2_0_la_SOURCES)		\
+	$(libstatic_pixbufloader_ani_la_SOURCES)	\
+	$(libstatic_pixbufloader_icns_la_SOURCES)	\
+	$(libstatic_pixbufloader_pnm_la_SOURCES)	\
+	$(libstatic_pixbufloader_png_la_SOURCES)	\
+	$(libstatic_pixbufloader_qtif_la_SOURCES)	\
+	$(libstatic_pixbufloader_tga_la_SOURCES)	\
+	$(libstatic_pixbufloader_xpm_la_SOURCES)	\
+	$(libstatic_pixbufloader_xbm_la_SOURCES)
+
+gdk_pixbuf_EXCLUDES = gdkpdummy
+
+gdk_pixbuf_HEADERS_DIR = $(libgdk_pixbufincludedir)
+gdk_pixbuf_HEADERS_INST = $(libgdk_pixbufinclude_HEADERS)
+gdk_pixbuf_HEADERS_EXCLUDES = gdkpdummy
+
+include $(top_srcdir)/win32/Makefile.msvcproj
 
 if HAVE_INTROSPECTION
 
@@ -743,7 +646,36 @@ typelibsdir = $(libdir)/girepository-1.0
 typelibs_DATA = $(INTROSPECTION_GIRS:.gir=.typelib)
 
 CLEANFILES += $(gir_DATA) $(typelibs_DATA)
+
+# --- MSVC Introspection Items ---
+
+MSVC_INTROSPECT_GIRS = GdkPixbuf-2.0.gir
+
+MSVC_INTROSPECTION_INTERMEDIATE_ITEMS = \
+	$(top_builddir)/win32/GdkPixbuf-2.0.gir.msvc.introspect	\
+	$(top_builddir)/win32/GdkPixbuf_2_0_gir_list
+
+GdkPixbuf_2_0_gir_MSVC_INCLUDE_GIRS = $(GdkPixbuf_2_0_gir_INCLUDES)
+GdkPixbuf_2_0_gir_MSVC_EXPORT_PACKAGES = $(GdkPixbuf_2_0_gir_EXPORT_PACKAGES)
+GdkPixbuf_2_0_gir_MSVC_LIBS = gdk_pixbuf-2.0
+GdkPixbuf_2_0_gir_MSVC_FILES = $(GdkPixbuf_2_0_gir_FILES)
+
+GdkPixbuf_2_0_gir_MSVC_CFLAGS =		\
+	-DGDK_PIXBUF_COMPILATION	\
+	-I..				\
+	-I../gdk-pixbuf
+
+GdkPixbuf_2_0_gir_MSVC_SCANNERFLAGS = $(GdkPixbuf_2_0_gir_SCANNERFLAGS)
+
+include $(top_srcdir)/win32/Makefile.msvc-introspection
+else
+MSVC_INTROSPECTION_INTERMEDIATE_ITEMS =
 endif
+
+dist-hook:	\
+	$(top_builddir)/win32/vs9/gdk-pixbuf.vcproj	\
+	$(top_builddir)/win32/vs9/gdk-pixbuf.headers	\
+	$(MSVC_INTROSPECTION_INTERMEDIATE_ITEMS)
 
 if CROSS_COMPILING
 RUN_QUERY_LOADER_TEST=false
@@ -757,7 +689,7 @@ endif
 # that makes the install target for the loader libraries a dependency on
 # install-data-am, and not install-exec-am. We need to ensure this gets run
 # after the libraries are installed in their final locations.
-install-data-hook: install-ms-lib install-def-file
+install-data-hook:
 	@if $(RUN_QUERY_LOADER_TEST) ; then \
 	  $(mkinstalldirs) $(DESTDIR)$(libdir)/gdk-pixbuf-2.0/$(GDK_PIXBUF_BINARY_VERSION) ; \
 	  $(top_builddir)/gdk-pixbuf/gdk-pixbuf-query-loaders$(EXEEXT) > $(DESTDIR)$(libdir)/gdk-pixbuf-2.0/$(GDK_PIXBUF_BINARY_VERSION)/loaders.cache ; \
@@ -770,7 +702,7 @@ install-data-hook: install-ms-lib install-def-file
 	  echo "***" ; \
 	fi
 
-uninstall-local: uninstall-ms-lib uninstall-def-file
+uninstall-local:
 	rm -f $(DESTDIR)$(libdir)/gdk-pixbuf-2.0/$(GDK_PIXBUF_BINARY_VERSION)/loaders.cache
 
 if CROSS_COMPILING

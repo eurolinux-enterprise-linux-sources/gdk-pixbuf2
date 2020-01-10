@@ -379,8 +379,8 @@ gdk_pixbuf_loader_ensure_error (GdkPixbufLoader *loader,
         g_set_error (error,
                      GDK_PIXBUF_ERROR,
                      GDK_PIXBUF_ERROR_FAILED,
-                     _("Internal error: Image loader module '%s' failed to"
-                       " complete an operation, but didn't give a reason for"
+                     _("Internal error: Image loader module “%s” failed to"
+                       " complete an operation, but didn’t give a reason for"
                        " the failure"),
                      priv->image_module->module_name);
 }
@@ -421,7 +421,7 @@ gdk_pixbuf_loader_load_module (GdkPixbufLoader *loader,
                         g_set_error (error,
                                      GDK_PIXBUF_ERROR,
                                      GDK_PIXBUF_ERROR_UNSUPPORTED_OPERATION,
-                                     _("Incremental loading of image type '%s' is not supported"),
+                                     _("Incremental loading of image type “%s” is not supported"),
                                      priv->image_module->module_name);
 
                         return 0;
@@ -516,7 +516,10 @@ gdk_pixbuf_loader_write (GdkPixbufLoader *loader,
                         buf += eaten;
                 }
   
-        if (count > 0 && priv->image_module->load_increment)
+        /* By this point, we expect the image_module to have been loaded. */
+        g_assert (count == 0 || priv->image_module != NULL);
+
+        if (count > 0 && priv->image_module->load_increment != NULL)
                 {
                         if (!priv->image_module->load_increment (priv->context, buf, count,
                                                                  error))
@@ -749,7 +752,7 @@ gdk_pixbuf_loader_get_pixbuf (GdkPixbufLoader *loader)
  * return %NULL.
  *
  * Return value: (transfer none): The #GdkPixbufAnimation that the loader is loading, or %NULL if
- not enough data has been read to determine the information.
+ * not enough data has been read to determine the information.
 **/
 GdkPixbufAnimation *
 gdk_pixbuf_loader_get_animation (GdkPixbufLoader *loader)

@@ -26,7 +26,7 @@
 /* This loader is very hairy code.
  *
  * The main loop was not designed for incremental loading, so when it was hacked
- * in it got a bit messy.  Basicly, every function is written to expect a failed
+ * in it got a bit messy.  Basically, every function is written to expect a failed
  * read_gif, and lets you call it again assuming that the bytes are there.
  *
  * Return vals.
@@ -142,9 +142,9 @@ struct _GifContext
 	GdkPixbufModuleUpdatedFunc update_func;
 	gpointer user_data;
         guchar *buf;
-	guint ptr;
-	guint size;
-	guint amount_needed;
+	gsize ptr;
+	gsize size;
+	gsize amount_needed;
 
 	/* extension context */
 	guchar extension_label;
@@ -188,6 +188,7 @@ struct _GifContext
         GError **error;
 };
 
+/* The buffer must be at least 255 bytes long. */
 static int GetDataBlock (GifContext *, unsigned char *);
 
 
@@ -210,7 +211,7 @@ gif_read (GifContext *context, guchar *buffer, size_t len)
 		count += len;
 		g_print ("Fsize :%d\tcount :%d\t", len, count);
 #endif
-		retval = (fread(buffer, len, 1, context->file) != 0);
+		retval = (fread (buffer, 1, len, context->file) == len);
 
                 if (!retval && ferror (context->file)) {
                         gint save_errno = errno;
@@ -451,6 +452,7 @@ gif_get_extension (GifContext *context)
 
 static int ZeroDataBlock = FALSE;
 
+/* @buf must be at least 255 bytes long. */
 static int
 GetDataBlock (GifContext *context,
 	      unsigned char *buf)
@@ -503,6 +505,14 @@ gif_lzw_fill_buffer (GifContext *context)
                              _("Internal error in the GIF loader (%s)"),
                              G_STRLOC);
                 
+		return -2;
+	}
+
+	if (context->code_last_byte < 2) {
+		g_set_error_literal (context->error,
+				     GDK_PIXBUF_ERROR,
+				     GDK_PIXBUF_ERROR_CORRUPT_IMAGE,
+				     _("Bad code encountered"));
 		return -2;
 	}
 
@@ -849,13 +859,29 @@ gif_get_lzw (GifContext *context)
                                 pixels[2] = 0;
                                 pixels[3] = 0;
                         }
-                } else
-                        context->frame->pixbuf =
-                                gdk_pixbuf_new (GDK_COLORSPACE_RGB,
-                                                TRUE,
-                                                8,
-                                                context->frame_len,
-                                                context->frame_height);
+                } else {
+                        int rowstride;
+                        guint64 len;
+
+                        rowstride = gdk_pixbuf_calculate_rowstride (GDK_COLORSPACE_RGB,
+                                                                    TRUE,
+                                                                    8,
+                                                                    context->frame_len,
+                                                                    context->frame_height);
+                        if (rowstride > 0 &&
+                            g_uint64_checked_mul (&len, rowstride, context->frame_height) &&
+                            len <= G_MAXINT) {
+                                context->frame->pixbuf =
+                                        gdk_pixbuf_new (GDK_COLORSPACE_RGB,
+                                                        TRUE,
+                                                        8,
+                                                        context->frame_len,
+                                                        context->frame_height);
+                        } else {
+                                context->frame->pixbuf = NULL;
+                        }
+                }
+
                 if (!context->frame->pixbuf) {
                         g_free (context->frame);
                         g_set_error_literal (context->error,
@@ -1066,11 +1092,11 @@ gif_get_lzw (GifContext *context)
         
 	if (bound_flag && context->update_func) {
 		if (lower_bound <= upper_bound && first_pass == context->draw_pass) {
-                        maybe_update (context, 
+                        maybe_update (context,
                                       context->frame->x_offset,
                                       context->frame->y_offset + lower_bound,
                                       gdk_pixbuf_get_width (context->frame->pixbuf),
-                                      upper_bound - lower_bound);
+                                      upper_bound - lower_bound + 1);
 		} else {
 			if (lower_bound <= upper_bound) {
                                 maybe_update (context,
@@ -1139,7 +1165,12 @@ gif_prepare_lzw (GifContext *context)
 	context->lzw_fresh = TRUE;
 	context->code_curbit = 0;
 	context->code_lastbit = 0;
-	context->code_last_byte = 0;
+	/* During initialistion (in gif_lzw_fill_buffer) we substract 2 from
+	 * this value to peek into a buffer.
+	 * In order to not get a negative array index later, we set the value
+	 * to that magic 2 now.
+	 */
+	context->code_last_byte = 2;
 	context->code_done = FALSE;
 
         g_assert (context->lzw_clear_code <= 
@@ -1556,15 +1587,22 @@ gdk_pixbuf__gif_image_stop_load (gpointer data, GError **error)
 	GifContext *context = (GifContext *) data;
         gboolean retval = TRUE;
         
-        if (context->state != GIF_DONE || context->animation->frames == NULL) {
+        if (context->animation->frames == NULL) {
                 g_set_error_literal (error,
                                      GDK_PIXBUF_ERROR,
                                      GDK_PIXBUF_ERROR_CORRUPT_IMAGE,
                                      _("GIF image was truncated or incomplete."));
 
                 retval = FALSE;
+        } else if (context->state != GIF_DONE) {
+                g_set_error_literal (error,
+                                     GDK_PIXBUF_ERROR,
+                                     GDK_PIXBUF_ERROR_INCOMPLETE_ANIMATION,
+                                     _("Not all frames of the GIF image were loaded."));
+
+                retval = FALSE;
         }
-        
+
         g_object_unref (context->animation);
 
   	g_free (context->buf);

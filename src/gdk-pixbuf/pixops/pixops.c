@@ -21,6 +21,7 @@
 #include <math.h>
 #include <glib.h>
 
+#include "../fallback-c89.c"
 #include "pixops.h"
 #include "pixops-internal.h"
 
@@ -264,11 +265,11 @@ pixops_scale_nearest (guchar        *dest_buf,
 		      double         scale_x,
 		      double         scale_y)
 {
-  int i;
-  int x;
-  int x_step = (1 << SCALE_SHIFT) / scale_x;
-  int y_step = (1 << SCALE_SHIFT) / scale_y;
-  int xmax, xstart, xstop, x_pos, y_pos;
+  gint64 i;
+  gint64 x;
+  gint64 x_step = (1 << SCALE_SHIFT) / scale_x;
+  gint64 y_step = (1 << SCALE_SHIFT) / scale_y;
+  gint64 xmax, xstart, xstop, x_pos, y_pos;
   const guchar *p;
 
 #define INNER_LOOP(SRC_CHANNELS,DEST_CHANNELS,ASSIGN_PIXEL)     \
@@ -304,8 +305,8 @@ pixops_scale_nearest (guchar        *dest_buf,
       guchar       *dest;
       y_pos = ((i + render_y0) * y_step + y_step / 2) >> SCALE_SHIFT;
       y_pos = CLAMP (y_pos, 0, src_height - 1);
-      src  = src_buf + y_pos * src_rowstride;
-      dest = dest_buf + i * dest_rowstride;
+      src  = src_buf + (gsize)y_pos * src_rowstride;
+      dest = dest_buf + (gsize)i * dest_rowstride;
 
       x = render_x0 * x_step + x_step / 2;
 
@@ -354,11 +355,11 @@ pixops_composite_nearest (guchar        *dest_buf,
 			  double         scale_y,
 			  int            overall_alpha)
 {
-  int i;
-  int x;
-  int x_step = (1 << SCALE_SHIFT) / scale_x;
-  int y_step = (1 << SCALE_SHIFT) / scale_y;
-  int xmax, xstart, xstop, x_pos, y_pos;
+  gint64 i;
+  gint64 x;
+  gint64 x_step = (1 << SCALE_SHIFT) / scale_x;
+  gint64 y_step = (1 << SCALE_SHIFT) / scale_y;
+  gint64 xmax, xstart, xstop, x_pos, y_pos;
   const guchar *p;
   unsigned int  a0;
 
@@ -368,8 +369,8 @@ pixops_composite_nearest (guchar        *dest_buf,
       guchar       *dest;
       y_pos = ((i + render_y0) * y_step + y_step / 2) >> SCALE_SHIFT;
       y_pos = CLAMP (y_pos, 0, src_height - 1);
-      src  = src_buf + y_pos * src_rowstride;
-      dest = dest_buf + i * dest_rowstride;
+      src  = src_buf + (gsize)y_pos * src_rowstride;
+      dest = dest_buf + (gsize)i * dest_rowstride;
 
       x = render_x0 * x_step + x_step / 2;
       
@@ -437,21 +438,51 @@ pixops_composite_nearest_noscale (guchar        *dest_buf,
 				  gboolean       src_has_alpha,
 				  int            overall_alpha)
 {
-  int i, j;
-  int x;
+  gint64 i;
+  gint64 x;
+  gint64 xmax, xstart, xstop, y_pos;
+  const guchar *p;
+  unsigned int  a0;
+
+#define INNER_LOOP_NOSCALE(SRC_CHANNELS,DEST_CHANNELS,ASSIGN_PIXEL) \
+      xmax = x + (render_x1 - render_x0);                       \
+      xstart = MIN (0, xmax);                                   \
+      xstop = MIN (src_width, xmax);                            \
+      p = src + CLAMP (x, xstart, xstop) * SRC_CHANNELS;        \
+      while (x < xstart)                                        \
+        {                                                       \
+          ASSIGN_PIXEL;                                         \
+          dest += DEST_CHANNELS;                                \
+          x++;                                                  \
+        }                                                       \
+      p = src + x * SRC_CHANNELS;                               \
+      while (x < xstop)                                         \
+        {                                                       \
+          ASSIGN_PIXEL;                                         \
+          dest += DEST_CHANNELS;                                \
+          x++;                                                  \
+          p += SRC_CHANNELS;                                    \
+        }                                                       \
+      p = src + CLAMP (x, 0, src_width - 1) * SRC_CHANNELS;     \
+      while (x < xmax)                                          \
+        {                                                       \
+          ASSIGN_PIXEL;                                         \
+          dest += DEST_CHANNELS;                                \
+          x++;                                                  \
+        }
 
   for (i = 0; i < (render_y1 - render_y0); i++)
     {
-      const guchar *src  = src_buf + (i + render_y0) * src_rowstride;
-      guchar       *dest = dest_buf + i * dest_rowstride;
+      const guchar *src;
+      guchar       *dest;
+      y_pos = i + render_y0;
+      y_pos = CLAMP (y_pos, 0, src_height - 1);
+      src  = src_buf + (gsize)y_pos * src_rowstride;
+      dest = dest_buf + (gsize)i * dest_rowstride;
 
-      x = render_x0 * src_channels;
+      x = render_x0;
 
-      for (j=0; j < (render_x1 - render_x0); j++)
-	{
-	  const guchar *p = src + x;
-	  unsigned int  a0;
-
+      INNER_LOOP_NOSCALE(src_channels, dest_channels,
 	  if (src_has_alpha)
 	    a0 = (p[3] * overall_alpha) / 0xff;
 	  else
@@ -494,11 +525,10 @@ pixops_composite_nearest_noscale (guchar        *dest_buf,
 	        }
 	      break;
 	    }
-	  dest += dest_channels;
-	  x += src_channels;
-	}
+	);
     }
 }
+#undef INNER_LOOP_NOSCALE
 
 static void
 pixops_composite_color_nearest (guchar        *dest_buf,
@@ -524,13 +554,13 @@ pixops_composite_color_nearest (guchar        *dest_buf,
 				guint32        color1,
 				guint32        color2)
 {
-  int i, j;
-  int x;
-  int x_step = (1 << SCALE_SHIFT) / scale_x;
-  int y_step = (1 << SCALE_SHIFT) / scale_y;
+  gint64 i, j;
+  gint64 x;
+  gint64 x_step = (1 << SCALE_SHIFT) / scale_x;
+  gint64 y_step = (1 << SCALE_SHIFT) / scale_y;
   int r1, g1, b1, r2, g2, b2;
   int check_shift = get_check_shift (check_size);
-  int xmax, xstart, xstop, x_pos, y_pos;
+  gint64 xmax, xstart, xstop, x_pos, y_pos;
   const guchar *p;
   unsigned int  a0;
 
@@ -540,8 +570,8 @@ pixops_composite_color_nearest (guchar        *dest_buf,
       guchar       *dest;
       y_pos = ((i + render_y0) * y_step + y_step / 2) >> SCALE_SHIFT;
       y_pos = CLAMP (y_pos, 0, src_height - 1);
-      src  = src_buf + y_pos * src_rowstride;
-      dest = dest_buf + i * dest_rowstride;
+      src  = src_buf + (gsize)y_pos * src_rowstride;
+      dest = dest_buf + (gsize)i * dest_rowstride;
 
       x = render_x0 * x_step + x_step / 2;
       
@@ -1272,18 +1302,17 @@ make_filter_table (PixopsFilter *filter)
   int i_offset, j_offset;
   int n_x = filter->x.n;
   int n_y = filter->y.n;
-  gsize n_weights;
   int *weights;
 
-  n_weights = SUBSAMPLE * SUBSAMPLE * n_x;
-  if (n_weights / (SUBSAMPLE * SUBSAMPLE) != n_x)
-    return NULL; /* overflow, bail */
+  /* check n_x doesn't overflow */
+  if (G_MAXINT / (SUBSAMPLE * SUBSAMPLE) < n_x)
+    return NULL;
 
-  n_weights *= n_y;
-  if (n_weights / (SUBSAMPLE * SUBSAMPLE * n_x) != n_y)
-    return NULL; /* overflow, bail */
+  /* check n_y doesn't overflow */
+  if (G_MAXINT / (SUBSAMPLE * SUBSAMPLE * n_x) < n_y)
+    return NULL;
 
-  weights = g_try_new (int, n_weights);
+  weights = g_try_new (int, SUBSAMPLE * SUBSAMPLE * n_x * n_y);
   if (!weights)
     return NULL; /* overflow, bail */
 
@@ -1339,20 +1368,20 @@ pixops_process (guchar         *dest_buf,
 		PixopsLineFunc  line_func,
 		PixopsPixelFunc pixel_func)
 {
-  int i, j;
-  int x, y;			/* X and Y position in source (fixed_point) */
+  gint64 i, j;
+  gint64 x, y;			/* X and Y position in source (fixed_point) */
 
   guchar **line_bufs;
   int *filter_weights;
 
-  int x_step;
-  int y_step;
+  gint64 x_step;
+  gint64 y_step;
 
   int check_shift;
-  int scaled_x_offset;
+  gint64 scaled_x_offset;
 
-  int run_end_x;
-  int run_end_index;
+  gint64 run_end_x;
+  gint64 run_end_index;
 
   x_step = (1 << SCALE_SHIFT) / scale_x; /* X step in source (fixed point) */
   y_step = (1 << SCALE_SHIFT) / scale_y; /* Y step in source (fixed point) */
@@ -1399,7 +1428,7 @@ pixops_process (guchar         *dest_buf,
       guchar *new_outbuf;
       guint32 tcolor1, tcolor2;
 
-      guchar *outbuf = dest_buf + dest_rowstride * i;
+      guchar *outbuf = dest_buf + (gsize)dest_rowstride * i;
       guchar *outbuf_end = outbuf + dest_channels * (render_x1 - render_x0);
 
       if (((i + check_y) >> check_shift) & 1)
@@ -1418,9 +1447,9 @@ pixops_process (guchar         *dest_buf,
 	  if (y_start <  0)
 	    line_bufs[j] = (guchar *)src_buf;
 	  else if (y_start < src_height)
-	    line_bufs[j] = (guchar *)src_buf + src_rowstride * y_start;
+	    line_bufs[j] = (guchar *)src_buf + (gsize)src_rowstride * y_start;
 	  else
-	    line_bufs[j] = (guchar *)src_buf + src_rowstride * (src_height - 1);
+	    line_bufs[j] = (guchar *)src_buf + (gsize)src_rowstride * (src_height - 1);
 
 	  y_start++;
 	}
@@ -1444,7 +1473,7 @@ pixops_process (guchar         *dest_buf,
 	}
 
       new_outbuf = (*line_func) (run_weights, filter->x.n, filter->y.n,
-				 outbuf, dest_x, dest_buf + dest_rowstride *
+				 outbuf, dest_x, dest_buf + (gsize)dest_rowstride *
 				 i + run_end_index * dest_channels,
 				 dest_channels, dest_has_alpha,
 				 line_bufs, src_channels, src_has_alpha,
@@ -1479,14 +1508,18 @@ pixops_process (guchar         *dest_buf,
 /* Compute weights for reconstruction by replication followed by
  * sampling with a box filter
  */
-static void
+static gboolean
 tile_make_weights (PixopsFilterDimension *dim,
 		   double                 scale)
 {
   int n = ceil (1 / scale + 1);
-  double *pixel_weights = g_malloc_n (sizeof (double) * SUBSAMPLE, n);
+  double *pixel_weights;
   int offset;
   int i;
+
+  pixel_weights = g_try_malloc_n (sizeof (double) * SUBSAMPLE, n);
+  if (pixel_weights == NULL)
+    return FALSE;
 
   dim->n = n;
   dim->offset = 0;
@@ -1515,13 +1548,15 @@ tile_make_weights (PixopsFilterDimension *dim,
             }
        }
     }
+
+  return TRUE;
 }
 
 /* Compute weights for a filter that, for minification
  * is the same as 'tiles', and for magnification, is bilinear
  * reconstruction followed by a sampling with a delta function.
  */
-static void
+static gboolean
 bilinear_magnify_make_weights (PixopsFilterDimension *dim,
 			       double                 scale)
 {
@@ -1542,7 +1577,9 @@ bilinear_magnify_make_weights (PixopsFilterDimension *dim,
     }
 
   dim->n = n;
-  dim->weights = g_malloc_n (sizeof (double) * SUBSAMPLE, n);
+  dim->weights = g_try_malloc_n (sizeof (double) * SUBSAMPLE, n);
+  if (dim->weights == NULL)
+    return FALSE;
 
   pixel_weights = dim->weights;
 
@@ -1582,6 +1619,8 @@ bilinear_magnify_make_weights (PixopsFilterDimension *dim,
             }
         }
     }
+
+  return TRUE;
 }
 
 /* Computes the integral from b0 to b1 of
@@ -1628,14 +1667,18 @@ linear_box_half (double b0, double b1)
 /* Compute weights for reconstructing with bilinear
  * interpolation, then sampling with a box filter
  */
-static void
+static gboolean
 bilinear_box_make_weights (PixopsFilterDimension *dim,
 			   double                 scale)
 {
   int n = ceil (1/scale + 3.0);
-  double *pixel_weights = g_malloc_n (sizeof (double) * SUBSAMPLE, n);
+  double *pixel_weights;
   double w;
   int offset, i;
+
+  pixel_weights = g_malloc_n (sizeof (double) * SUBSAMPLE, n);
+  if (pixel_weights == NULL)
+    return FALSE;
 
   dim->offset = -1.0;
   dim->n = n;
@@ -1654,9 +1697,11 @@ bilinear_box_make_weights (PixopsFilterDimension *dim,
           *(pixel_weights++) = w * scale;
         }
     }
+
+  return TRUE;
 }
 
-static void
+static gboolean
 make_weights (PixopsFilter     *filter,
 	      PixopsInterpType  interp_type,	      
 	      double            scale_x,
@@ -1665,25 +1710,176 @@ make_weights (PixopsFilter     *filter,
   switch (interp_type)
     {
     case PIXOPS_INTERP_NEAREST:
+    default:
       g_assert_not_reached ();
-      break;
+      return FALSE;
 
     case PIXOPS_INTERP_TILES:
-      tile_make_weights (&filter->x, scale_x);
-      tile_make_weights (&filter->y, scale_y);
-      break;
+      if (!tile_make_weights (&filter->x, scale_x))
+        return FALSE;
+      if (!tile_make_weights (&filter->y, scale_y))
+        {
+          g_free (filter->x.weights);
+          return FALSE;
+        }
+      return TRUE;
       
     case PIXOPS_INTERP_BILINEAR:
-      bilinear_magnify_make_weights (&filter->x, scale_x);
-      bilinear_magnify_make_weights (&filter->y, scale_y);
-      break;
+      if (!bilinear_magnify_make_weights (&filter->x, scale_x))
+        return FALSE;
+      if (!bilinear_magnify_make_weights (&filter->y, scale_y))
+        {
+          g_free (filter->x.weights);
+          return FALSE;
+        }
+      return TRUE;
       
     case PIXOPS_INTERP_HYPER:
-      bilinear_box_make_weights (&filter->x, scale_x);
-      bilinear_box_make_weights (&filter->y, scale_y);
-      break;
+      if (!bilinear_box_make_weights (&filter->x, scale_x))
+        return FALSE;
+      if (!bilinear_box_make_weights (&filter->y, scale_y))
+        {
+          g_free (filter->x.weights);
+          return FALSE;
+        }
+      return TRUE;
     }
 }
+
+/* Two-step scaler begins */
+
+/* make_filter_table() bloats out in VM usage and consumes 100% CPU for
+ * tens of seconds when downscaling by a large factor.
+ * https://bugzilla.gnome.org/show_bug.cgi?id=80925
+ * We work round this by doing extreme reductions in two steps.
+ *
+ * The excessive CPU usage is accompanied by an excessive RAM usage because
+ * make_weights() allocates two arrays of weights proportional in size to
+ * n_x = (1 / scale_x + 3) and n_y = (1 / scale_y + 3),  then make_filter_table()
+ * allocates and fills an array of SUBSAMPLE * SUBSAMPLE * n_x * n_y doubles.
+ * Empirically, on machines with plenty of RAM, the execution time slopes upward
+ * when n_filters > 1000.
+ * SUBSAMPLE is 16 so each filter takes 16 x 16 doubles (8 bytes) = 2kb RAM.
+ * Limiting it to 1000 filters limits the scaler's RAM consumption to about 2MB
+ * which should be OK on machines with relatively little memory.
+ *
+ * GDK_INTER_BILINEAR, GDK_INTERP_TILES and GDK_INTER_HYPER all have
+ * similar symptoms; only GDK_INTERP_NEAREST does not need this trick.
+ **/
+#define MAX_FILTERS 1000
+
+/* Check whether prescaling is necessary to avoid the bug */
+static gboolean
+need_to_prescale (double           scale_x,
+		  double           scale_y,
+		  PixopsInterpType interp_type)
+{
+  int n_x, n_y; /* See make_weights() */
+
+  /* The testsuite sets this to compare the results with and without it. */
+  if (g_getenv ("GDK_PIXBUF_DISABLE_TWO_STEP_SCALER"))
+    return FALSE;
+
+  /* Calculate the number of weights created in make_weights() */
+  switch (interp_type) {
+  case PIXOPS_INTERP_HYPER:
+    n_x = ceil (1 / scale_x + 3);
+    n_y = ceil (1 / scale_y + 3);
+    break;
+  case PIXOPS_INTERP_TILES:
+  case PIXOPS_INTERP_BILINEAR:
+    n_x = ceil (1 / scale_x + 1);
+    n_y = ceil (1 / scale_y + 1);
+    break;
+  case PIXOPS_INTERP_NEAREST:
+    /* Doesn't need the optimization */
+    return FALSE;
+  default:
+    g_assert_not_reached ();
+  }
+
+  /* Limit the number of filters created by make_filter_table(). */
+  return (n_x * n_y > MAX_FILTERS);
+}
+
+/* Prescale the source image.
+ * If successful, it changes the source buffer's parameters to reflect the
+ * half-scaled image and the scaling factors to reflect the scaling left to do.
+ * It returns a pointer to the new image data or NULL, so that the caller knows
+ * whether they have to free the temporary buffer or not.
+ */
+static guchar *
+prescale (const guchar     **src_bufp,
+	  int               *src_widthp,
+	  int               *src_heightp,
+	  int               *src_rowstridep,
+	  int                src_channels,
+	  gboolean           src_has_alpha,
+	  double            *scale_xp,
+	  double            *scale_yp,
+	  PixopsInterpType   interp_type)
+{
+  /* Give local names to parameters that may be modified */
+  const guchar *src_buf = *src_bufp;
+  int           src_width = *src_widthp;
+  int           src_height = *src_heightp;
+  int           src_rowstride = *src_rowstridep;
+  double        scale_x = *scale_xp;
+  double        scale_y = *scale_yp;
+
+  /* How much we prescale each axis by */
+  double prescale_x, prescale_y;
+
+  /* The prescaled image */
+  int tmp_width, tmp_height;
+  int tmp_rowstride;
+  int tmp_channels;
+  gboolean tmp_has_alpha;
+  guchar *tmp_buf;
+
+  /* The time taken by make_filter_table() is roughly proportional to
+   * 1/scale_x * 1/scale_y, i.e. to the area reduction factor, so we
+   * reduce the image in two steps, each of which reduces the total area
+   * by the same factor. */
+  prescale_x = sqrt (scale_x);
+  prescale_y = sqrt (scale_y);
+
+  /* Scale the whole source image into a top-left-aligned temporary pixbuf.
+   * render_[xy][01] are done in the final scaling, not here, as they are
+   * measured in the coordinate system of the scaled image. */
+  tmp_width = lrint (src_width * prescale_x);
+  tmp_height = lrint (src_height * prescale_y);
+
+  /* We are below the gdk_ interface, so create the temp image manually.
+   * Code copied from gdk_pixbuf_new() */
+  tmp_channels = src_channels;
+  tmp_has_alpha = src_has_alpha;
+  tmp_rowstride = ((tmp_width * tmp_channels) + 3) & ~3;
+  tmp_buf = g_try_malloc_n (tmp_height, tmp_rowstride);
+  if (!tmp_buf)
+    return NULL; /* Skip the prescaling */
+
+  /* Prescale to an intermediate size */
+  _pixops_scale (tmp_buf, tmp_width, tmp_height, tmp_rowstride,
+		 tmp_channels, tmp_has_alpha, src_buf, src_width,
+		 src_height, src_rowstride, src_channels, src_has_alpha,
+		 0, 0, tmp_width, tmp_height, 0.0, 0.0,
+		 prescale_x, prescale_y,
+		 interp_type);
+
+  /* The second call to the scaler reads from the prescaled image */
+  *src_bufp = tmp_buf;
+  *src_widthp = tmp_width;
+  *src_heightp = tmp_height;
+  *src_rowstridep = tmp_rowstride;
+
+  /* Calculate how much scaling is left to do */
+  *scale_xp /= prescale_x;
+  *scale_yp /= prescale_y;
+
+  return tmp_buf;
+}
+/* End of two-step scaler */
 
 static void
 _pixops_composite_color_real (guchar          *dest_buf,
@@ -1712,6 +1908,7 @@ _pixops_composite_color_real (guchar          *dest_buf,
 {
   PixopsFilter filter;
   PixopsLineFunc line_func;
+  guchar *tmp_buf = NULL;
   
 #ifdef USE_MMX
   gboolean found_mmx = _pixops_have_mmx ();
@@ -1734,9 +1931,15 @@ _pixops_composite_color_real (guchar          *dest_buf,
 				      check_size, color1, color2);
       return;
     }
+
+  if (need_to_prescale (scale_x, scale_y, interp_type))
+    tmp_buf = prescale (&src_buf, &src_width, &src_height, &src_rowstride,
+			src_channels, src_has_alpha,
+			&scale_x, &scale_y, interp_type);
   
   filter.overall_alpha = overall_alpha / 255.;
-  make_weights (&filter, interp_type, scale_x, scale_y);
+  if (!make_weights (&filter, interp_type, scale_x, scale_y))
+    return;
 
 #ifdef USE_MMX
   if (filter.x.n == 2 && filter.y.n == 2 &&
@@ -1755,6 +1958,8 @@ _pixops_composite_color_real (guchar          *dest_buf,
 
   g_free (filter.x.weights);
   g_free (filter.y.weights);
+  if (tmp_buf)
+    g_free (tmp_buf);
 }
 
 void
@@ -1864,6 +2069,7 @@ _pixops_composite_real (guchar          *dest_buf,
 {
   PixopsFilter filter;
   PixopsLineFunc line_func;
+  guchar *tmp_buf = NULL;
   
 #ifdef USE_MMX
   gboolean found_mmx = _pixops_have_mmx ();
@@ -1889,9 +2095,15 @@ _pixops_composite_real (guchar          *dest_buf,
 				  src_has_alpha, scale_x, scale_y, overall_alpha);
       return;
     }
+
+  if (need_to_prescale (scale_x, scale_y, interp_type))
+    tmp_buf = prescale (&src_buf, &src_width, &src_height, &src_rowstride,
+			src_channels, src_has_alpha,
+			&scale_x, &scale_y, interp_type);
   
   filter.overall_alpha = overall_alpha / 255.;
-  make_weights (&filter, interp_type, scale_x, scale_y);
+  if (!make_weights (&filter, interp_type, scale_x, scale_y))
+    return;
 
   if (filter.x.n == 2 && filter.y.n == 2 && dest_channels == 4 &&
       src_channels == 4 && src_has_alpha && !dest_has_alpha)
@@ -1914,6 +2126,8 @@ _pixops_composite_real (guchar          *dest_buf,
 
   g_free (filter.x.weights);
   g_free (filter.y.weights);
+  if (tmp_buf)
+    g_free (tmp_buf);
 }
 
 void
@@ -1967,7 +2181,7 @@ _pixops_composite (guchar          *dest_buf,
   return;
 #endif
 
-  new_dest_buf = dest_buf + dest_y * dest_rowstride + dest_x * dest_channels;
+  new_dest_buf = dest_buf + (gsize)dest_y * dest_rowstride + (gsize)dest_x * dest_channels;
   render_x0 = dest_x - offset_x;
   render_y0 = dest_y - offset_y;
   render_x1 = dest_x + dest_region_width  - offset_x;
@@ -2127,7 +2341,7 @@ pixops_medialib_composite (guchar          *dest_buf,
   if (!use_medialib)
     {
       /* Use non-mediaLib version */
-      _pixops_composite_real (dest_buf + dest_y * dest_rowstride + dest_x *
+      _pixops_composite_real (dest_buf + (gsize)dest_y * dest_rowstride + (gsize)dest_x *
 			      dest_channels, dest_x - offset_x, dest_y -
 			      offset_y, dest_x + dest_region_width - offset_x,
 			      dest_y + dest_region_height - offset_y,
@@ -2169,8 +2383,8 @@ pixops_medialib_composite (guchar          *dest_buf,
         }
       else
         {
-	  mlib_u8 *data = dest_buf + (dest_y * dest_rowstride) + 
-				     (dest_x * dest_channels);
+	  mlib_u8 *data = dest_buf + (gsize)dest_y * dest_rowstride +
+				     (gsize)dest_x * dest_channels;
 
           mlib_ImageSetStruct (&img_dest, MLIB_BYTE, dest_channels,
 			       dest_region_width, dest_region_height,
@@ -2237,8 +2451,8 @@ pixops_medialib_composite (guchar          *dest_buf,
               else
                 {
                   /* Should not happen - Use non-mediaLib version */
-                  _pixops_composite_real (dest_buf + dest_y * dest_rowstride +
-                                          dest_x * dest_channels,
+                  _pixops_composite_real (dest_buf + (gsize)dest_y * dest_rowstride +
+                                          (gsize)dest_x * dest_channels,
                                           dest_x - offset_x, dest_y - offset_y,
                                           dest_x + dest_region_width - offset_x,
                                           dest_y + dest_region_height - offset_y,
@@ -2275,6 +2489,7 @@ _pixops_scale_real (guchar        *dest_buf,
 {
   PixopsFilter filter;
   PixopsLineFunc line_func;
+  guchar *tmp_buf = NULL;	/* Temporary image for two-step scaling */
 
 #ifdef USE_MMX
   gboolean found_mmx = _pixops_have_mmx ();
@@ -2296,9 +2511,15 @@ _pixops_scale_real (guchar        *dest_buf,
 			    scale_x, scale_y);
       return;
     }
+
+  if (need_to_prescale (scale_x, scale_y, interp_type))
+    tmp_buf = prescale (&src_buf, &src_width, &src_height, &src_rowstride,
+			src_channels, src_has_alpha,
+			&scale_x, &scale_y, interp_type);
   
   filter.overall_alpha = 1.0;
-  make_weights (&filter, interp_type, scale_x, scale_y);
+  if (!make_weights (&filter, interp_type, scale_x, scale_y))
+    return;
 
   if (filter.x.n == 2 && filter.y.n == 2 && dest_channels == 3 && src_channels == 3)
     {
@@ -2320,6 +2541,7 @@ _pixops_scale_real (guchar        *dest_buf,
 
   g_free (filter.x.weights);
   g_free (filter.y.weights);
+  g_clear_pointer (&tmp_buf, g_free);
 }
 
 void
@@ -2361,7 +2583,7 @@ _pixops_scale (guchar          *dest_buf,
   return;
 #endif
 
-  new_dest_buf = dest_buf + dest_y * dest_rowstride + dest_x * dest_channels;
+  new_dest_buf = dest_buf + (gsize)dest_y * dest_rowstride + (gsize)dest_x * dest_channels;
   render_x0    = dest_x - offset_x;
   render_y0    = dest_y - offset_y;
   render_x1    = dest_x + dest_region_width  - offset_x;
@@ -2415,8 +2637,8 @@ pixops_medialib_scale     (guchar          *dest_buf,
    */
   if (!use_medialib)
     {
-      _pixops_scale_real (dest_buf + dest_y * dest_rowstride + dest_x *
-			  dest_channels, dest_x - offset_x, dest_y - offset_y, 
+      _pixops_scale_real (dest_buf + (gsize)dest_y * dest_rowstride + (gsize)dest_x *
+			  dest_channels, dest_x - offset_x, dest_y - offset_y,
 			  dest_x + dest_region_width - offset_x,
 			  dest_y + dest_region_height - offset_y,
 			  dest_rowstride, dest_channels, dest_has_alpha,
@@ -2444,8 +2666,8 @@ pixops_medialib_scale     (guchar          *dest_buf,
         }
       else
         {
-	  mlib_u8 *data = dest_buf + (dest_y * dest_rowstride) + 
-				     (dest_x * dest_channels);
+	  mlib_u8 *data = dest_buf + (gsize)dest_y * dest_rowstride +
+				     (gsize)dest_x * dest_channels;
 
           mlib_ImageSetStruct (&img_dest, MLIB_BYTE, dest_channels,
 			       dest_region_width, dest_region_height,
@@ -2480,7 +2702,7 @@ pixops_medialib_scale     (guchar          *dest_buf,
               int channels  = 3;
               int rowstride = (channels * src_width + 3) & ~3;
         
-              tmp_buf = g_malloc (src_rowstride * src_height);
+              tmp_buf = g_malloc_n (src_rowstride, src_height);
 
               if (src_buf != NULL)
                 {

@@ -1,0 +1,128 @@
+From e7f940102d40997f2e23a0589247cfb189dfaa98 Mon Sep 17 00:00:00 2001
+From: Iain Lane <iain@orangesquash.org.uk>
+Date: Sun, 20 Sep 2015 13:24:21 +0100
+Subject: [PATCH] Skip tests when we can't run them due to lack of memory
+
+Check if we have failed due to insufficient memory and skip if
+so.
+
+https://bugzilla.gnome.org/show_bug.cgi?id=754387
+---
+ tests/Makefile.am     |  2 ++
+ tests/cve-2015-4491.c |  4 ++++
+ tests/pixbuf-scale.c  | 25 ++++++++++++++++++++++---
+ tests/test-common.c   | 14 ++++++++++++++
+ tests/test-common.h   |  1 +
+ 5 files changed, 43 insertions(+), 3 deletions(-)
+
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index d5dca44..1f09711 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -65,6 +65,8 @@ dist_installed_test_data =		\
+ 
+ cve_2015_4491_SOURCES =			\
+ 	cve-2015-4491.c			\
++	test-common.c			\
++	test-common.h			\
+ 	resources.h			\
+ 	resources.c			\
+ 	$(NULL)
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index d5dca44..1f09711 100644
+--- a/tests/Makefile.in
++++ b/tests/Makefile.in
+@@ -202,7 +202,7 @@
+ am__v_lt_1 = 
+ am__objects_1 =
+ am_cve_2015_4491_OBJECTS = cve-2015-4491.$(OBJEXT) resources.$(OBJEXT) \
+-	$(am__objects_1)
++	test-common.$(OBJEXT) $(am__objects_1)
+ cve_2015_4491_OBJECTS = $(am_cve_2015_4491_OBJECTS)
+ cve_2015_4491_LDADD = $(LDADD)
+ cve_2015_4491_DEPENDENCIES = $(top_builddir)/gdk-pixbuf/libgdk_pixbuf-$(GDK_PIXBUF_API_VERSION).la \
+@@ -879,6 +879,8 @@
+ 
+ cve_2015_4491_SOURCES = \
+ 	cve-2015-4491.c			\
++	test-common.c			\
++	test-common.h			\
+ 	resources.h			\
+ 	resources.c			\
+ 	$(NULL)
+diff --git a/tests/cve-2015-4491.c b/tests/cve-2015-4491.c
+index 34ba94f..988cb49 100644
+--- a/tests/cve-2015-4491.c
++++ b/tests/cve-2015-4491.c
+@@ -20,6 +20,8 @@
+ 
+ #include <gdk-pixbuf.h>
+ 
++#include "test-common.h"
++
+ static void
+ test_original (void)
+ {
+@@ -28,6 +30,8 @@ test_original (void)
+   GError* err = NULL;
+ 
+   buf = gdk_pixbuf_new_from_resource_at_scale ("/test/resource/cve-2015-4491.bmp", size, size, FALSE, &err);
++  if (skip_if_insufficient_memory (&err))
++    return;
+ 
+   g_assert_no_error (err);
+ 
+diff --git a/tests/pixbuf-scale.c b/tests/pixbuf-scale.c
+index e2be5f5..60d0a20 100644
+--- a/tests/pixbuf-scale.c
++++ b/tests/pixbuf-scale.c
+@@ -83,6 +83,9 @@ test_scale_down (gconstpointer data)
+ 
+   path = g_test_get_filename (G_TEST_DIST, filename, NULL);
+   ref = gdk_pixbuf_new_from_file (path, &error);
++
++  if (skip_if_insufficient_memory (&error))
++    return;
+   g_assert_no_error (error);
+ 
+   width = gdk_pixbuf_get_width (ref);
+diff --git a/tests/test-common.c b/tests/test-common.c
+index 7071d4c..0f70a8b 100644
+--- a/tests/test-common.c
++++ b/tests/test-common.c
+@@ -65,6 +65,20 @@ format_supported (const gchar *filename)
+ }
+ 
+ gboolean
++skip_if_insufficient_memory (GError **err)
++{
++  if (*err && g_error_matches (*err, GDK_PIXBUF_ERROR, GDK_PIXBUF_ERROR_INSUFFICIENT_MEMORY))
++  {
++      g_test_skip ((*err)->message);
++      g_error_free (*err);
++      *err = NULL;
++      return TRUE;
++  }
++
++  return FALSE;
++}
++
++gboolean
+ pixdata_equal (GdkPixbuf *p1, GdkPixbuf *p2, GError **error)
+ {
+   if (gdk_pixbuf_get_colorspace (p1) != gdk_pixbuf_get_colorspace (p2)) {
+diff --git a/tests/test-common.h b/tests/test-common.h
+index 56e4418..0514cd7 100644
+--- a/tests/test-common.h
++++ b/tests/test-common.h
+@@ -28,6 +28,7 @@
+ G_BEGIN_DECLS
+ 
+ gboolean format_supported (const gchar *filename);
++gboolean skip_if_insufficient_memory (GError **err);
+ gboolean pixdata_equal (GdkPixbuf *p1, GdkPixbuf *p2, GError **error);
+ 
+ G_END_DECLS
+-- 
+2.4.3
+

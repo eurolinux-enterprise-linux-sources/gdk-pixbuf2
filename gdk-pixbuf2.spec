@@ -1,20 +1,20 @@
-%global glib2_version 2.34.0
+%global glib2_version 2.37.6
 
 Name:           gdk-pixbuf2
-Version:        2.28.2
-Release:        5%{?dist}
+Version:        2.31.6
+Release:        3%{?dist}
 Summary:        An image loading library
 
 Group:          System Environment/Libraries
 License:        LGPLv2+
 URL:            http://www.gt.org
 #VCS:           git:git://git.gnome.org/gdk-pixbuf
-Source0:        http://download.gnome.org/sources/gdk-pixbuf/2.28/gdk-pixbuf-%{version}.tar.xz
+Source0:        http://download.gnome.org/sources/gdk-pixbuf/2.31/gdk-pixbuf-%{version}.tar.xz
 
-# upstream fix
-Patch0: 0001-Make-update-cache-work-better.patch
-# https://bugzilla.redhat.com/show_bug.cgi?id=1253213
-Patch1: cve-2015-4491.patch
+Patch0: 0001-pixops-Chane-variable-type.patch
+Patch1: 0002-pixops-Be-smarter-than-gcc-s-optimizer.patch
+Patch2: 0001-pixops-Fail-make_weights-functions-on-OOM.patch
+Patch3: 0001-Skip-tests-when-we-can-t-run-them-due-to-lack-of-mem.patch
 
 BuildRequires:  glib2-devel >= %{glib2_version}
 BuildRequires:  libpng-devel
@@ -30,7 +30,7 @@ BuildRequires:  shared-mime-info
 BuildRequires: autoconf automake libtool gtk-doc
 BuildRequires: gettext-autopoint
 
-Requires: glib2 >= %{glib2_version}
+Requires: glib2%{?_isa} >= %{glib2_version}
 
 # We also need MIME information at runtime
 Requires: shared-mime-info
@@ -46,8 +46,8 @@ clutter.
 %package devel
 Summary: Development files for gdk-pixbuf
 Group: Development/Libraries
-Requires: %{name} = %{version}-%{release}
-Requires: glib2-devel >= %{glib2_version}
+Requires: %{name}%{?_isa} = %{version}-%{release}
+Requires: glib2-devel%{?_isa} >= %{glib2_version}
 
 # gdk-pixbuf was included in gtk2 until 2.21.2
 Conflicts: gtk2-devel <= 2.21.2
@@ -56,18 +56,31 @@ Conflicts: gtk2-devel <= 2.21.2
 This package contains the libraries and header files that are needed
 for writing applications that are using gdk-pixbuf.
 
+%package tests
+Summary: Tests for the %{name} package
+Group: Development/Libraries
+Requires: %{name}%{?_isa} = %{version}-%{release}
+
+%description tests
+The %{name}-tests package contains tests that can be used to verify
+the functionality of the installed %{name} package.
+
 
 %prep
 %setup -q -n gdk-pixbuf-%{version}
 %patch0 -p1
 %patch1 -p1
+%patch2 -p1
+%patch3 -p1
 
 %build
 (if ! test -x configure; then NOCONFIGURE=1 ./autogen.sh; CONFIGFLAGS=--enable-gtk-doc; fi;
  %configure $CONFIGFLAGS             \
         --with-x11                   \
         --with-libjasper             \
-        --with-included-loaders=png  )
+        --with-included-loaders=png  \
+        --enable-installed-tests
+)
 make %{?_smp_mflags}
 
 
@@ -122,15 +135,29 @@ fi
 %{_datadir}/gtk-doc/html/*
 %{_mandir}/man1/gdk-pixbuf-csource.1*
 
+%files tests
+%{_libexecdir}/installed-tests
+%{_datadir}/installed-tests
+
 
 %changelog
-* Mon Aug 31 2015 Scientific Linux Auto Patch Process <SCIENTIFIC-LINUX-DEVEL@LISTSERV.FNAL.GOV>
-- Eliminated rpmbuild "bogus date" error due to inconsistent weekday,
-  by assuming the date is correct and changing the weekday.
+* Tue Sep 22 2015 Benjamin Otte <otte@gnome.org> - 2.31.6-3
+- Fix testsuite more
+- Resolves: #1264466
 
-* Wed Aug 19 2015 Benjamin Otte <otte@redhat.com> - 2.28.2-5
-- Fix CVE 2015-4491
-- Resolves #1253213
+* Mon Sep 21 2015 Matthias Clasen <mclasen@redhat.com> - 2.31.6-2
+- Fix testsuite
+- Resolves: #1264466
+
+* Wed Aug 19 2015 Benjamin Otte <otte@redhat.com> - 2.31.6-1
+- Update to 2.31.6
+- Resolves: #1253214
+
+* Mon Apr 27 2015 Matthias Clasen <mclasen@redhat.com> - 2.31.1-1
+- Update to 2.31.1
+- Add a -tests subpackage
+- Drop an upstreamed patch
+- Resolves: #1174438
 
 * Fri Jan 24 2014 Daniel Mach <dmach@redhat.com> - 2.28.2-4
 - Mass rebuild 2014-01-24

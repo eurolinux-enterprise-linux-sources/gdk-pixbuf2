@@ -1,8 +1,8 @@
 %global glib2_version 2.48.0
 
 Name:           gdk-pixbuf2
-Version:        2.36.12
-Release:        3%{?dist}
+Version:        2.36.5
+Release:        1%{?dist}
 Summary:        An image loading library
 
 License:        LGPLv2+
@@ -20,10 +20,9 @@ BuildRequires:  pkgconfig(gobject-introspection-1.0) >= 0.9.3
 # gdk-pixbuf does a configure time check which uses the GIO mime
 # layer; we need to actually have the mime type database.
 BuildRequires:  shared-mime-info
-
-# needed for man page generation
-BuildRequires:  docbook-style-xsl
-BuildRequires:  libxslt
+# Bootstrap requirements
+BuildRequires: autoconf automake libtool gtk-doc
+BuildRequires: gettext-autopoint
 
 Requires: glib2%{?_isa} >= %{glib2_version}
 
@@ -60,20 +59,17 @@ the functionality of the installed %{name} package.
 
 
 %prep
-%autosetup -n gdk-pixbuf-%{version} -p1
+%setup -q -n gdk-pixbuf-%{version}
 
 %build
-%configure                           \
+(if ! test -x configure; then NOCONFIGURE=1 ./autogen.sh; CONFIGFLAGS=--enable-gtk-doc; fi;
+ %configure $CONFIGFLAGS             \
         --with-x11                   \
         --with-libjasper             \
         --with-included-loaders=png  \
         --enable-installed-tests     \
-        --enable-man                 \
         --disable-silent-rules
-
-# needed to work around bug in makefile goo
-rm -f docs/reference/gdk-pixbuf/*.1
-
+)
 make %{?_smp_mflags}
 
 
@@ -136,18 +132,6 @@ fi
 
 
 %changelog
-* Thu Jul 26 2018 Ray Strode <rstrode@redhat.com> - 2.36.12-3
-- One more crack at generating man pages
-  Related: #1569815
-
-* Thu Jul 26 2018 Ray Strode <rstrode@redhat.com> - 2.36.12-2
-- Generate man page
-  Related: #1569815
-
-* Sun Apr 08 2018 Kalev Lember <klember@redhat.com> - 2.36.12-1
-- Update to 2.36.12
-- Resolves: #1569815
-
 * Mon Feb 13 2017 Kalev Lember <klember@redhat.com> - 2.36.5-1
 - Update to 2.36.5
 - Resolves: #1386861

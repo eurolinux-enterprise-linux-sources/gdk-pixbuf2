@@ -15,10 +15,6 @@
     <GdkPixbufDefines>HAVE_CONFIG_H;GDK_PIXBUF_COMPILATION;GDK_PIXBUF_ENABLE_BACKEND;DLL_EXPORT;GDK_PIXBUF_RELOCATABLE;$(GdkPixbufPrefixDefine);$(GdkPixbufBinVerDefine);$(MODULAR_MACROS)</GdkPixbufDefines>
     <GdipLibs>gdiplus.lib</GdipLibs>
     <ImagingLibs>jpeg.lib;libjasper.lib;libtiff_i.lib</ImagingLibs>
-    <GdkPixbufIntrospectNMakeCmd>cd ..
-set VCInstallDir=$(VCInstallDir)
-nmake -f gdk-pixbuf-introspection-msvc.mak CFG=$(Configuration) PREFIX=$(GlibEtcInstallRoot)</GdkPixbufIntrospectNMakeCmd>
-    <GdkPixbufIntrospectBuiltFiles>$(SolutionDir)\..\GdkPixbuf-2.0.gir;$(SolutionDir)\..\GdkPixbuf-2.0.typelib</GdkPixbufIntrospectBuiltFiles>
   </PropertyGroup>
   <PropertyGroup>
     <_PropertySheetDisplayName>gdk-pixbufbuilddefinesprops</_PropertySheetDisplayName>
@@ -37,10 +33,6 @@ nmake -f gdk-pixbuf-introspection-msvc.mak CFG=$(Configuration) PREFIX=$(GlibEtc
       <AdditionalDependencies>gio-2.0.lib;gmodule-2.0.lib;gobject-2.0.lib;glib-2.0.lib;intl.lib;libpng16.lib;zlib1.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(GlibEtcInstallRoot)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>LIBCMTD.lib;LIBCMT.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <AdditionalOptions Condition="'$(VisualStudioVersion)|$(Platform)'=='11.0|x64'">/HIGHENTROPYVA %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalOptions Condition="'$(VisualStudioVersion)|$(Platform)'=='12.0|x64'">/HIGHENTROPYVA %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalOptions Condition="'$(VisualStudioVersion)|$(Platform)'=='14.0|x64'">/HIGHENTROPYVA %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalOptions Condition="'$(VisualStudioVersion)|$(Platform)'=='15.0|x64'">/HIGHENTROPYVA %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -76,12 +68,6 @@ nmake -f gdk-pixbuf-introspection-msvc.mak CFG=$(Configuration) PREFIX=$(GlibEtc
     </BuildMacro>
     <BuildMacro Include="ImagingLibs">
       <Value>$(ImagingLibs)</Value>
-    </BuildMacro>
-    <BuildMacro Include="GdkPixbufIntrospectNMakeCmd">
-      <Value>$(GdkPixbufIntrospectNMakeCmd)</Value>
-    </BuildMacro>
-    <BuildMacro Include="GdkPixbufIntrospectBuiltFiles">
-      <Value>$(GdkPixbufIntrospectBuiltFiles)</Value>
     </BuildMacro>
   </ItemGroup>
 </Project>

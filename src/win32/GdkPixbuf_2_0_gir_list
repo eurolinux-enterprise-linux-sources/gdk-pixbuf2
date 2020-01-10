@@ -22,4 +22,3 @@
 ..\gdk-pixbuf\gdk-pixbuf-util.c
 ..\gdk-pixbuf\gdk-pixdata.c
 ..\gdk-pixbuf\gdk-pixbuf-enum-types.c
-..\gdk-pixbuf\gdk-pixbuf-marshal.c

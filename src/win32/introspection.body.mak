@@ -10,7 +10,6 @@ GdkPixbuf-2.0.gir: GdkPixbuf_2_0_gir_list
 	--add-include-path=$(G_IR_INCLUDEDIR)	\
 	--include=GModule-2.0 --include=Gio-2.0	\
 	--pkg-export=gdk-pixbuf-2.0	\
-  	\
 	--cflags-begin	\
 	-DGDK_PIXBUF_COMPILATION -I.. -I../gdk-pixbuf	\
 	--cflags-end	\

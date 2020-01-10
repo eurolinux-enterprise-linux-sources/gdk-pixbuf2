@@ -28,7 +28,8 @@
 #include <png.h>
 #include <math.h>
 #include "gdk-pixbuf-private.h"
-#include "fallback-c89.c"
+
+
 
 static gboolean
 setup_png_transformations(png_structp png_read_ptr, png_infop png_info_ptr,
@@ -312,10 +313,13 @@ gdk_pixbuf__png_image_load (FILE *f, GError **error)
         pixbuf = gdk_pixbuf_new (GDK_COLORSPACE_RGB, ctype & PNG_COLOR_MASK_ALPHA, 8, w, h);
 
 	if (!pixbuf) {
-                g_set_error_literal (error,
-                                     GDK_PIXBUF_ERROR,
-                                     GDK_PIXBUF_ERROR_INSUFFICIENT_MEMORY,
-                                     _("Insufficient memory to load PNG file"));
+                if (error && *error == NULL) {
+                        g_set_error_literal (error,
+                                             GDK_PIXBUF_ERROR,
+                                             GDK_PIXBUF_ERROR_INSUFFICIENT_MEMORY,
+                                             _("Insufficient memory to load PNG file"));
+                }
+                
 
 		png_destroy_read_struct (&png_ptr, &info_ptr, NULL);
 		return NULL;
@@ -523,9 +527,11 @@ gdk_pixbuf__png_image_stop_load (gpointer context, GError **error)
         if (lc->pixbuf)
                 g_object_unref (lc->pixbuf);
         else {
-                g_set_error_literal (error, GDK_PIXBUF_ERROR,
-                                     GDK_PIXBUF_ERROR_CORRUPT_IMAGE,
-                                     _("Premature end-of-file encountered"));
+                if (error && *error == NULL) {
+                        g_set_error_literal (error, GDK_PIXBUF_ERROR,
+                                             GDK_PIXBUF_ERROR_CORRUPT_IMAGE,
+                                             _("Premature end-of-file encountered"));
+                }
                 retval = FALSE;
 	}
         
@@ -660,10 +666,12 @@ png_info_callback   (png_structp png_read_ptr,
                 
                 if (w == 0 || h == 0) {
                         lc->fatal_error_occurred = TRUE;
-                        g_set_error_literal (lc->error,
-                                             GDK_PIXBUF_ERROR,
-                                             GDK_PIXBUF_ERROR_FAILED,
-                                             _("Transformed PNG has zero width or height."));
+                        if (lc->error && *lc->error == NULL) {
+                                g_set_error_literal (lc->error,
+                                                     GDK_PIXBUF_ERROR,
+                                                     GDK_PIXBUF_ERROR_FAILED,
+                                                     _("Transformed PNG has zero width or height."));
+                        }
                         return;
                 }
         }
@@ -673,11 +681,13 @@ png_info_callback   (png_structp png_read_ptr,
         if (lc->pixbuf == NULL) {
                 /* Failed to allocate memory */
                 lc->fatal_error_occurred = TRUE;
-                g_set_error (lc->error,
-                             GDK_PIXBUF_ERROR,
-                             GDK_PIXBUF_ERROR_INSUFFICIENT_MEMORY,
-                             _("Insufficient memory to store a %lu by %lu image; try exiting some applications to reduce memory usage"),
-                             (gulong) width, (gulong) height);
+                if (lc->error && *lc->error == NULL) {
+                        g_set_error (lc->error,
+                                     GDK_PIXBUF_ERROR,
+                                     GDK_PIXBUF_ERROR_INSUFFICIENT_MEMORY,
+                                     _("Insufficient memory to store a %lu by %lu image; try exiting some applications to reduce memory usage"),
+                                     (gulong) width, (gulong) height);
+                }
                 return;
         }
 
@@ -749,10 +759,12 @@ png_row_callback   (png_structp png_read_ptr,
 
         if (row_num >= lc->pixbuf->height) {
                 lc->fatal_error_occurred = TRUE;
-                g_set_error_literal (lc->error,
-                                     GDK_PIXBUF_ERROR,
-                                     GDK_PIXBUF_ERROR_CORRUPT_IMAGE,
-                                     _("Fatal error reading PNG image file"));
+                if (lc->error && *lc->error == NULL) {
+                        g_set_error_literal (lc->error,
+                                             GDK_PIXBUF_ERROR,
+                                             GDK_PIXBUF_ERROR_CORRUPT_IMAGE,
+                                             _("Fatal error reading PNG image file"));
+                }
                 return;
         }
 
@@ -929,7 +941,7 @@ static gboolean real_save_png (GdkPixbuf        *pixbuf,
                                        g_set_error (error,
                                                     GDK_PIXBUF_ERROR,
                                                     GDK_PIXBUF_ERROR_BAD_OPTION,
-                                                    _("PNG compression level must be a value between 0 and 9; value “%s” could not be parsed."),
+                                                    _("PNG compression level must be a value between 0 and 9; value '%s' could not be parsed."),
                                                     *viter);
                                        success = FALSE;
                                        goto cleanup;
@@ -942,7 +954,7 @@ static gboolean real_save_png (GdkPixbuf        *pixbuf,
                                        g_set_error (error,
                                                     GDK_PIXBUF_ERROR,
                                                     GDK_PIXBUF_ERROR_BAD_OPTION,
-                                                    _("PNG compression level must be a value between 0 and 9; value “%d” is not allowed."),
+                                                    _("PNG compression level must be a value between 0 and 9; value '%d' is not allowed."),
                                                     compression);
                                        success = FALSE;
                                        goto cleanup;
@@ -961,7 +973,7 @@ static gboolean real_save_png (GdkPixbuf        *pixbuf,
                                        g_set_error (error,
                                                     GDK_PIXBUF_ERROR,
                                                     GDK_PIXBUF_ERROR_BAD_OPTION,
-                                                    _("PNG x-dpi must be greater than zero; value “%s” is not allowed."),
+                                                    _("PNG x-dpi must be greater than zero; value '%s' is not allowed."),
                                                     *viter);
 
                                        success = FALSE;
@@ -981,7 +993,7 @@ static gboolean real_save_png (GdkPixbuf        *pixbuf,
                                        g_set_error (error,
                                                     GDK_PIXBUF_ERROR,
                                                     GDK_PIXBUF_ERROR_BAD_OPTION,
-                                                    _("PNG y-dpi must be greater than zero; value “%s” is not allowed."),
+                                                    _("PNG y-dpi must be greater than zero; value '%s' is not allowed."),
                                                     *viter);
 
                                        success = FALSE;

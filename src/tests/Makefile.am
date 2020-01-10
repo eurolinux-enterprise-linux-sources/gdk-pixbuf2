@@ -1,7 +1,5 @@
 include $(top_srcdir)/glib-tap.mk
 
-.NOTPARALLEL:
-
 AM_CPPFLAGS =				\
 	-I$(top_srcdir)			\
 	-I$(top_srcdir)/gdk-pixbuf	\
@@ -60,7 +58,6 @@ dist_installed_test_data =		\
 	dpi.tiff			\
 	premature-end.png		\
 	premature-end.jpg		\
-	bug143608-comment.jpg		\
 	bug725582-testrotate.jpg	\
 	bug725582-testrotate.png	\
 	cve-2015-4491.bmp		\

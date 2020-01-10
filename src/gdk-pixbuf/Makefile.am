@@ -88,7 +88,7 @@ libpixbufloader_pnm_la_LIBADD = $(module_libs)
 libstatic_pixbufloader_tiff_la_SOURCES = io-tiff.c
 libpixbufloader_tiff_la_SOURCES = io-tiff.c
 libpixbufloader_tiff_la_LDFLAGS = -avoid-version -module $(no_undefined)
-libpixbufloader_tiff_la_LIBADD = $(TIFF_LIBS) $(module_libs)
+libpixbufloader_tiff_la_LIBADD = $(LIBTIFF) $(module_libs)
 
 #
 # The XPM loader
@@ -472,8 +472,7 @@ libgdk_pixbuf_2_0_la_SOURCES =   \
 	gdk-pixbuf-scaled-anim.c \
 	gdk-pixbuf-util.c	 \
 	gdk-pixdata.c		 \
-	gdk-pixbuf-enum-types.c  \
-	gdk-pixbuf-marshal.c
+	gdk-pixbuf-enum-types.c
 
 libgdk_pixbuf_2_0_la_CFLAGS =			\
 	$(AM_CPPFLAGS)				\
@@ -595,8 +594,8 @@ EXTRA_DIST =					\
 	gdk-pixbuf-marshal.list			\
 	gdk-pixbuf-enum-types.c.template	\
 	gdk-pixbuf-enum-types.h.template	\
-	gdiplus.def				\
-	fallback-c89.c
+	gen-color-table.pl			\
+	gdiplus.def
 
 # ---------- MSVC Items ------------------
 

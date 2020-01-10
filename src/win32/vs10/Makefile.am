@@ -20,17 +20,19 @@ EXTRA_DIST = \
 	gdk-pixbuf-pixdata.vcxproj.filters	\
 	gdk-pixbuf-install.vcxproj	\
 	gdk-pixbuf-install.vcxproj.filters	\
-	gdk-pixbuf-introspect.vcxproj	\
-	$(GENERATED_ITEMS)
+	$(GENERATED_ITEMS)		\
+	math.h
 
 gdk-pixbuf-install.props: $(top_srcdir)/win32/vs10/gdk-pixbuf-install.propsin gdk-pixbuf.vs10.headers
 	-$(RM) $(top_builddir)/win32/vs11/gdk-pixbuf-install.props
 	-$(RM) $(top_builddir)/win32/vs12/gdk-pixbuf-install.props
 	-$(RM) $(top_builddir)/win32/vs14/gdk-pixbuf-install.props
-	-$(RM) $(top_builddir)/win32/vs15/gdk-pixbuf-install.props
 	$(CPP) -P - <$(top_srcdir)/win32/vs10/gdk-pixbuf-install.propsin >$@
 	rm gdk-pixbuf.vs10.headers
 
-DISTCLEANFILES = $(GENERATED_ITEMS)
+math.h: $(top_srcdir)/win32/vs9/math.h
+	cp $< $@
+
+DISTCLEANFILES = $(GENERATED_ITEMS) math.h
 
 -include $(top_srcdir)/git.mk

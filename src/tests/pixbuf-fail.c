@@ -26,16 +26,17 @@
 #include "test-common.h"
 
 static void
-test_fail_size (GFile *file,
-		guint  chunk_size)
+test_fail (gconstpointer data)
 {
   GdkPixbufLoader *loader;
   GError *error = NULL;
+  GFile *file;
   guchar *contents;
   gsize i, contents_length;
   char *filename, *content_type, *mime_type;
   gboolean success;
 
+  file = G_FILE (data);
   if (!file_supported (file))
     {
       g_test_skip ("format not supported");
@@ -56,9 +57,9 @@ test_fail_size (GFile *file,
   g_assert_no_error (error);
   g_assert (loader != NULL);
 
-  for (i = 0; i < contents_length; i += chunk_size)
+  for (i = 0; i < contents_length; i++)
     {
-      success = gdk_pixbuf_loader_write (loader, &contents[i], MIN(chunk_size, contents_length - i), &error);
+      success = gdk_pixbuf_loader_write (loader, &contents[i], 1, &error);
       if (!success)
         {
           g_assert (error);
@@ -81,22 +82,6 @@ out:
   g_free (filename);
 }
 
-static void
-test_fail_tiny (gconstpointer data)
-{
-  GFile *file = (GFile *) data;
-
-  test_fail_size (file, 1);
-}
-
-static void
-test_fail_huge (gconstpointer data)
-{
-  GFile *file = (GFile *) data;
-
-  test_fail_size (file, G_MAXUINT);
-}
-
 int
 main (int argc, char **argv)
 {
@@ -111,8 +96,7 @@ main (int argc, char **argv)
       test_images = g_build_filename (g_test_get_dir (G_TEST_DIST), "test-images/fail", NULL);
       dir = g_file_new_for_path (test_images);
       
-      add_test_for_all_images ("/pixbuf/fail_tiny", dir, dir, test_fail_tiny, NULL);
-      add_test_for_all_images ("/pixbuf/fail_huge", dir, dir, test_fail_huge, NULL);
+      add_test_for_all_images ("/pixbuf/fail", dir, dir, test_fail, NULL);
 
       g_object_unref (dir);
       g_free (test_images);
@@ -125,8 +109,7 @@ main (int argc, char **argv)
         {
           GFile *file = g_file_new_for_commandline_arg (argv[i]);
 
-          add_test_for_all_images ("/pixbuf/fail_tiny", NULL, file, test_fail_tiny, NULL);
-          add_test_for_all_images ("/pixbuf/fail_huge", NULL, file, test_fail_huge, NULL);
+          add_test_for_all_images ("/pixbuf/fail", NULL, file, test_fail, NULL);
 
           g_object_unref (file);
         }

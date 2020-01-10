@@ -16,8 +16,6 @@ loader_write_from_channel (GdkPixbufLoader *loader,
     gsize bytes_read = 0;
     GIOStatus read_status;
     GError* error = NULL;
-    gboolean ret;
-    
     if(count_bytes < G_MAXSIZE) {
         //read no more than 'count_bytes' bytes
         buffer = g_malloc (count_bytes);
@@ -28,9 +26,8 @@ loader_write_from_channel (GdkPixbufLoader *loader,
     }
     g_assert (read_status == G_IO_STATUS_NORMAL || read_status == G_IO_STATUS_EOF);
 
-    ret = gdk_pixbuf_loader_write(loader, buffer, bytes_read, &error);
+    g_assert (gdk_pixbuf_loader_write(loader, buffer, bytes_read, &error));
     g_assert_no_error (error);
-    g_assert (ret);
     g_free(buffer);
     return bytes_read;
 }
@@ -38,13 +35,11 @@ loader_write_from_channel (GdkPixbufLoader *loader,
 static void
 test_short_gif_write (void)
 {
-    GdkPixbufLoader *loader;
     GIOChannel* channel = g_io_channel_new_file (g_test_get_filename (G_TEST_DIST, "test-animation.gif", NULL), "r", NULL);
-
     g_assert (channel != NULL);
     g_io_channel_set_encoding (channel, NULL, NULL);
 
-    loader = gdk_pixbuf_loader_new_with_type ("gif", NULL);
+    GdkPixbufLoader *loader = gdk_pixbuf_loader_new_with_type ("gif", NULL);
     g_assert (loader != NULL);
 
     loader_write_from_channel (loader, channel, 10);
@@ -63,20 +58,17 @@ test_load_first_frame (void)
     gboolean has_frame = FALSE;
     GError *error = NULL;
     GdkPixbuf *pixbuf;
-    GdkPixbufLoader *loader;
 
     channel = g_io_channel_new_file (g_test_get_filename (G_TEST_DIST, "1_partyanimsm2.gif", NULL), "r", NULL);
     g_assert (channel != NULL);
     g_io_channel_set_encoding (channel, NULL, NULL);
 
-    loader = gdk_pixbuf_loader_new_with_type ("gif", NULL);
+    GdkPixbufLoader *loader = gdk_pixbuf_loader_new_with_type ("gif", NULL);
     g_assert (loader != NULL);
 
     while (!has_frame) {
-        GdkPixbufAnimation *animation;
-
         loader_write_from_channel (loader, channel, 4096);
-        animation = gdk_pixbuf_loader_get_animation (loader);
+        GdkPixbufAnimation *animation = gdk_pixbuf_loader_get_animation (loader);
         if (animation) {
             GdkPixbufAnimationIter *iter = gdk_pixbuf_animation_get_iter (animation, NULL);
             if (!gdk_pixbuf_animation_iter_on_currently_loading_frame (iter))

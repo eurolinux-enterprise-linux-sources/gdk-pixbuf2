@@ -44,7 +44,6 @@ MODULE_ENTRY (fill_info) (GdkPixbufFormat *info)
   };
 
   static const gchar *mime_types[] = {
-    "image/wmf",
     "image/x-wmf",
     NULL
   };

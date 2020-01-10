@@ -32,7 +32,6 @@
    <ClCompile Include="..\..\gdk-pixbuf\gdk-pixbuf-util.c"><Filter>Source Files</Filter></ClCompile>
    <ClCompile Include="..\..\gdk-pixbuf\gdk-pixdata.c"><Filter>Source Files</Filter></ClCompile>
    <ClCompile Include="..\..\gdk-pixbuf\gdk-pixbuf-enum-types.c"><Filter>Source Files</Filter></ClCompile>
-   <ClCompile Include="..\..\gdk-pixbuf\gdk-pixbuf-marshal.c"><Filter>Source Files</Filter></ClCompile>
    <ClCompile Include="..\..\gdk-pixbuf\io-ani.c"><Filter>Source Files</Filter></ClCompile>
    <ClCompile Include="..\..\gdk-pixbuf\io-ani-animation.c"><Filter>Source Files</Filter></ClCompile>
    <ClCompile Include="..\..\gdk-pixbuf\io-icns.c"><Filter>Source Files</Filter></ClCompile>

@@ -41,21 +41,11 @@
 /*#define HAVE_INTTYPES_H*/
 #endif
 
-/* Define to 1 if lrint() is available */
-#if !defined (_MSC_VER) || (_MSC_VER >= 1800)
-#define HAVE_LRINT 1
-#endif
-
 /* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_MEMORY_H 1
 
 /* Define to 1 is libjpeg supports progressive JPEG */
 #define HAVE_PROGRESSIVE_JPEG 1
-
-/* Define to 1 if round() is available */
-#if !defined (_MSC_VER) || (_MSC_VER >= 1800)
-#define HAVE_ROUND 1
-#endif
 
 /* Define to 1 if sigsetjmp is available */
 /*#undef HAVE_SIGSETJMP*/
@@ -120,7 +110,7 @@
 #define PACKAGE_NAME "gdk-pixbuf"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "gdk-pixbuf 2.36.12"
+#define PACKAGE_STRING "gdk-pixbuf 2.36.5"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "gdk-pixbuf"
@@ -129,7 +119,7 @@
 #define PACKAGE_URL "http://www.gtk.org/"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "2.36.12"
+#define PACKAGE_VERSION "2.36.5"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1

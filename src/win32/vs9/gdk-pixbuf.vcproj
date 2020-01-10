@@ -49,6 +49,7 @@
     LinkIncremental="2"
     GenerateDebugInformation="true"
     SubSystem="2"
+    RandomizedBaseAddress="1"
     DataExecutionPrevention="0"
     ImportLibrary="$(OutDir)\gdk_pixbuf-$(ApiVersion).lib"
     TargetMachine="1"
@@ -84,6 +85,7 @@
     SubSystem="2"
     OptimizeReferences="2"
     EnableCOMDATFolding="2"
+    RandomizedBaseAddress="1"
     DataExecutionPrevention="0"
     ImportLibrary="$(OutDir)\gdk_pixbuf-$(ApiVersion).lib"
     TargetMachine="1"
@@ -183,6 +185,7 @@
     LinkIncremental="2"
     GenerateDebugInformation="true"
     SubSystem="2"
+    RandomizedBaseAddress="1"
     DataExecutionPrevention="0"
     ImportLibrary="$(OutDir)\gdk_pixbuf-$(ApiVersion).lib"
     TargetMachine="1"
@@ -218,6 +221,7 @@
     SubSystem="2"
     OptimizeReferences="2"
     EnableCOMDATFolding="2"
+    RandomizedBaseAddress="1"
     DataExecutionPrevention="0"
     ImportLibrary="$(OutDir)\gdk_pixbuf-$(ApiVersion).lib"
     TargetMachine="1"
@@ -307,7 +311,6 @@
    <File RelativePath="..\..\gdk-pixbuf\gdk-pixbuf-util.c" />
    <File RelativePath="..\..\gdk-pixbuf\gdk-pixdata.c" />
    <File RelativePath="..\..\gdk-pixbuf\gdk-pixbuf-enum-types.c" />
-   <File RelativePath="..\..\gdk-pixbuf\gdk-pixbuf-marshal.c" />
    <File RelativePath="..\..\gdk-pixbuf\io-ani.c" />
    <File RelativePath="..\..\gdk-pixbuf\io-ani-animation.c" />
    <File RelativePath="..\..\gdk-pixbuf\io-icns.c" />

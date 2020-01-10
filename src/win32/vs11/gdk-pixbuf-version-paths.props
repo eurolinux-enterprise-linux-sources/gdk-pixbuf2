@@ -4,7 +4,7 @@
     <VSVer>11</VSVer>
     <GdkPixbufMajorVersion>2</GdkPixbufMajorVersion>
     <GdkPixbufMinorVersion>36</GdkPixbufMinorVersion>
-    <GdkPixbufMicroVersion>12</GdkPixbufMicroVersion>
+    <GdkPixbufMicroVersion>5</GdkPixbufMicroVersion>
     <ApiVersion>2.0</ApiVersion>
     <GlibEtcInstallRoot>$(SolutionDir)\..\..\..\vs$(VSVer)\$(Platform)</GlibEtcInstallRoot>
     <CopyDir>$(GlibEtcInstallRoot)</CopyDir>
@@ -15,14 +15,8 @@
     <GdkPixbufSeparateVSDllSuffix>-2-vs$(VSVer)</GdkPixbufSeparateVSDllSuffix>
     <GdkPixbufDllPrefix>$(GdkPixbufSeparateVSDllPrefix)</GdkPixbufDllPrefix>
     <GdkPixbufDllSuffix>$(GdkPixbufSeparateVSDllSuffix)</GdkPixbufDllSuffix>
-    <PythonDir Condition="'$(VisualStudioVersion)' == '10.0'">c:\python34</PythonDir>
-    <PythonDir Condition="'$(VisualStudioVersion)' == '11.0'">c:\python34</PythonDir>
-    <PythonDir Condition="'$(VisualStudioVersion)' == '12.0'">c:\python34</PythonDir>
-    <PythonDir Condition="'$(VisualStudioVersion)' == '14.0'">c:\python36</PythonDir>
-    <PythonDir Condition="'$(VisualStudioVersion)' == '15.0'">c:\python36</PythonDir>
-    <PythonDirX64>$(PythonDir).x64</PythonDirX64>
-    <IntrospectPythonParam>PYTHON=$(PythonDir)\python.exe</IntrospectPythonParam>
-    <IntrospectPythonParamX64>PYTHON=$(PythonDirX64)\python.exe</IntrospectPythonParamX64>
+    <PythonPath>c:\python34</PythonPath>
+    <PythonPathX64>$(PythonPath).x64</PythonPathX64>
   </PropertyGroup>
   <PropertyGroup>
     <_PropertySheetDisplayName>gdk-versionpathsprops</_PropertySheetDisplayName>
@@ -70,17 +64,11 @@
     <BuildMacro Include="GdkPixbufDllSuffix">
       <Value>$(GdkPixbufDllSuffix)</Value>
     </BuildMacro>
-    <BuildMacro Include="PythonDir">
-      <Value>$(PythonDir)</Value>
+    <BuildMacro Include="PythonPath">
+      <Value>$(PythonPath)</Value>
     </BuildMacro>
-    <BuildMacro Include="PythonDirX64">
-      <Value>$(PythonDirX64)</Value>
-    </BuildMacro>
-    <BuildMacro Include="IntrospectPythonParam">
-      <Value>$(IntrospectPythonParam)</Value>
-    </BuildMacro>
-    <BuildMacro Include="IntrospectPythonParamX64">
-      <Value>$(IntrospectPythonParamX64)</Value>
+    <BuildMacro Include="PythonPathX64">
+      <Value>$(PythonPathX64)</Value>
     </BuildMacro>
   </ItemGroup>
 </Project>

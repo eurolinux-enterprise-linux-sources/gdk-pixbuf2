@@ -35,7 +35,7 @@
 /* Include the marshallers */
 #include <glib-object.h>
 #include <gio/gio.h>
-#include "gdk-pixbuf-marshal.h"
+#include "gdk-pixbuf-marshal.c"
 
 /**
  * SECTION:creating
@@ -422,46 +422,6 @@ free_buffer (guchar *pixels, gpointer data)
 }
 
 /**
- * gdk_pixbuf_calculate_rowstride:
- * @colorspace: Color space for image
- * @has_alpha: Whether the image should have transparency information
- * @bits_per_sample: Number of bits per color sample
- * @width: Width of image in pixels, must be > 0
- * @height: Height of image in pixels, must be > 0
- *
- * Calculates the rowstride that an image created with those values would
- * have. This is useful for front-ends and backends that want to sanity
- * check image values without needing to create them.
- *
- * Return value: the rowstride for the given values, or -1 in case of error.
- *
- * Since: 2.36.8
- */
-gint
-gdk_pixbuf_calculate_rowstride (GdkColorspace colorspace,
-				gboolean      has_alpha,
-				int           bits_per_sample,
-				int           width,
-				int           height)
-{
-	unsigned int channels;
-
-	g_return_val_if_fail (colorspace == GDK_COLORSPACE_RGB, -1);
-	g_return_val_if_fail (bits_per_sample == 8, -1);
-	g_return_val_if_fail (width > 0, -1);
-	g_return_val_if_fail (height > 0, -1);
-
-	channels = has_alpha ? 4 : 3;
-
-	/* Overflow? */
-	if (width > (G_MAXINT - 3) / channels)
-		return -1;
-
-	/* Always align rows to 32-bit boundaries */
-	return (width * channels + 3) & ~3;
-}
-
-/**
  * gdk_pixbuf_new:
  * @colorspace: Color space for image
  * @has_alpha: Whether the image should have transparency information
@@ -484,15 +444,22 @@ gdk_pixbuf_new (GdkColorspace colorspace,
                 int           height)
 {
 	guchar *buf;
-	int rowstride;
+	unsigned int channels;
+	unsigned int rowstride;
 
-	rowstride = gdk_pixbuf_calculate_rowstride (colorspace,
-						    has_alpha,
-						    bits_per_sample,
-						    width,
-						    height);
-	if (rowstride <= 0)
+	g_return_val_if_fail (colorspace == GDK_COLORSPACE_RGB, NULL);
+	g_return_val_if_fail (bits_per_sample == 8, NULL);
+	g_return_val_if_fail (width > 0, NULL);
+	g_return_val_if_fail (height > 0, NULL);
+
+	channels = has_alpha ? 4 : 3;
+
+	/* Overflow? */
+	if (width > (G_MAXUINT - 3) / channels)
 		return NULL;
+
+	/* Always align rows to 32-bit boundaries */
+	rowstride = (width * channels + 3) & ~3;
 
 	buf = g_try_malloc_n (height, rowstride);
 	if (!buf)
@@ -676,7 +643,7 @@ gdk_pixbuf_get_bits_per_sample (const GdkPixbuf *pixbuf)
  * Queries a pointer to the pixel data of a pixbuf.
  *
  * Return value: (array): A pointer to the pixbuf's pixel data.
- * Please see the section on [image data][image-data] for information
+ * Please see the section on [image data](image-data) for information
  * about how the pixel data is stored in memory.
  *
  * This function will cause an implicit copy of the pixbuf data if the
@@ -696,7 +663,7 @@ gdk_pixbuf_get_pixels (const GdkPixbuf *pixbuf)
  * Queries a pointer to the pixel data of a pixbuf.
  *
  * Return value: (array length=length): A pointer to the pixbuf's
- * pixel data.  Please see the section on [image data][image-data]
+ * pixel data.  Please see the section on [image data](image-data)
  * for information about how the pixel data is stored in memory.
  *
  * This function will cause an implicit copy of the pixbuf data if the
@@ -942,8 +909,6 @@ gdk_pixbuf_fill (GdkPixbuf *pixbuf,
  * the "multipage" option string to "yes" when a multi-page TIFF is loaded.
  * Since 2.32 the JPEG and PNG loaders set "x-dpi" and "y-dpi" if the file
  * contains image density information in dots per inch.
- * Since 2.36.6, the JPEG loader sets the "comment" option with the comment
- * EXIF tag.
  * 
  * Return value: the value associated with @key. This is a nul-terminated 
  * string that should not be freed or %NULL if @key was not found.

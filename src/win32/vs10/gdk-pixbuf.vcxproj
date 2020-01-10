@@ -118,10 +118,10 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
     <LinkIncremental Condition="'$(Configuration)'=='Debug'">true</LinkIncremental>
-    <LinkIncremental Condition="'$(Configuration)'=='Debug_GDI+'">true</LinkIncremental>
-    <OutDir Condition="'$(Configuration)'=='Debug_GDI+'">Debug\$(Platform)\bin\</OutDir>
-    <LinkIncremental Condition="'$(Configuration)'=='Release_GDI+'">false</LinkIncremental>
-    <OutDir Condition="'$(Configuration)'=='Release_GDI+'">Release\$(Platform)\bin\</OutDir>
+    <LinkIncremental Condition="'$(Configuration)'=='Debug_GDI'">true</LinkIncremental>
+    <OutDir Condition="'$(Configuration)'=='Debug_GDI'">Debug\$(Platform)\bin\</OutDir>
+    <LinkIncremental Condition="'$(Configuration)'=='Release_GDI'">false</LinkIncremental>
+    <OutDir Condition="'$(Configuration)'=='Release_GDI'">Release\$(Platform)\bin\</OutDir>
     <LinkIncremental Condition="'$(Configuration)'=='Release'">false</LinkIncremental>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug_GDI+|Win32'">
@@ -145,6 +145,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>$(OutDir)$(GdkPixbufDllPrefix)gdk_pixbuf$(GdkPixbufDllSuffix).pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <DataExecutionPrevention>
       </DataExecutionPrevention>
       <TargetMachine>MachineX86</TargetMachine>
@@ -171,6 +172,7 @@
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <DataExecutionPrevention>
       </DataExecutionPrevention>
       <TargetMachine>MachineX86</TargetMachine>
@@ -241,6 +243,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>$(OutDir)$(GdkPixbufDllPrefix)gdk_pixbuf$(GdkPixbufDllSuffix).pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <DataExecutionPrevention>
       </DataExecutionPrevention>
       <TargetMachine>MachineX86</TargetMachine>
@@ -267,6 +270,7 @@
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <DataExecutionPrevention>
       </DataExecutionPrevention>
       <TargetMachine>MachineX86</TargetMachine>
@@ -328,7 +332,6 @@
    <ClCompile Include="..\..\gdk-pixbuf\gdk-pixbuf-util.c" />
    <ClCompile Include="..\..\gdk-pixbuf\gdk-pixdata.c" />
    <ClCompile Include="..\..\gdk-pixbuf\gdk-pixbuf-enum-types.c" />
-   <ClCompile Include="..\..\gdk-pixbuf\gdk-pixbuf-marshal.c" />
    <ClCompile Include="..\..\gdk-pixbuf\io-ani.c" />
    <ClCompile Include="..\..\gdk-pixbuf\io-ani-animation.c" />
    <ClCompile Include="..\..\gdk-pixbuf\io-icns.c" />
@@ -377,39 +380,48 @@
       <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\gdk-pixbuf\io-bmp.c">
-      <ExcludedFromBuild Condition="'$(Configuration)'=='Debug_GDI+'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)'=='Release_GDI+'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)'=='Debug_GDI'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)'=='Release_GDI'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\gdk-pixbuf\io-gif.c">
-      <ExcludedFromBuild Condition="'$(Configuration)'=='Debug_GDI+'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)'=='Release_GDI+'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)'=='Debug_GDI'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)'=='Release_GDI'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\gdk-pixbuf\io-gif-animation.c">
-      <ExcludedFromBuild Condition="'$(Configuration)'=='Debug_GDI+'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)'=='Release_GDI+'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)'=='Debug_GDI'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)'=='Release_GDI'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\gdk-pixbuf\io-ico.c">
-      <ExcludedFromBuild Condition="'$(Configuration)'=='Debug_GDI+'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)'=='Release_GDI+'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)'=='Debug_GDI'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)'=='Release_GDI'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\gdk-pixbuf\io-jasper.c">
-      <ExcludedFromBuild Condition="'$(Configuration)'=='Debug_GDI+'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)'=='Release_GDI+'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)'=='Debug_GDI'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)'=='Release_GDI'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\gdk-pixbuf\io-jpeg.c">
-      <ExcludedFromBuild Condition="'$(Configuration)'=='Debug_GDI+'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)'=='Release_GDI+'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)'=='Debug_GDI'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)'=='Release_GDI'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\gdk-pixbuf\io-tiff.c">
-      <ExcludedFromBuild Condition="'$(Configuration)'=='Debug_GDI+'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)'=='Release_GDI+'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)'=='Debug_GDI'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)'=='Release_GDI'">true</ExcludedFromBuild>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\..\config.h.win32">
-      <Message>Copying config.h from config.h.win32...</Message>
-      <Command>$(GenConfigH)</Command>
-      <Outputs>..\..\config.h;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)'=='Debug_GDI'">Copying config.h from config.h.win32...</Message>
+      <Command Condition="'$(Configuration)'=='Debug_GDI'">$(GenConfigH)</Command>
+      <Outputs Condition="'$(Configuration)'=='Debug_GDI'">..\..\config.h;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)'=='Debug'">Copying config.h from config.h.win32...</Message>
+      <Command Condition="'$(Configuration)'=='Debug'">$(GenConfigH)</Command>
+      <Outputs Condition="'$(Configuration)'=='Debug'">..\..\config.h;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)'=='Release_GDI'">Copying config.h from config.h.win32...</Message>
+      <Command Condition="'$(Configuration)'=='Release_GDI'">$(GenConfigH)</Command>
+      <Outputs Condition="'$(Configuration)'=='Release_GDI'">..\..\config.h;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)'=='Release'">Copying config.h from config.h.win32...</Message>
+      <Command Condition="'$(Configuration)'=='Release'">$(GenConfigH)</Command>
+      <Outputs Condition="'$(Configuration)'=='Release'">..\..\config.h;%(Outputs)</Outputs>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

@@ -63,19 +63,11 @@
 		Value="$(GdkPixbufSeparateVSDllSuffix)"
 	/>
 	<UserMacro
-		Name="PythonDir"
+		Name="PythonPath"
 		Value="c:\python27"
 	/>
 	<UserMacro
-		Name="PythonDirX64"
-		Value="$(PythonDir).x64"
-	/>
-	<UserMacro
-		Name="IntrospectPythonParam"
-		Value="PYTHON=$(PythonDir)\python.exe"
-	/>
-	<UserMacro
-		Name="IntrospectPythonParamX64"
-		Value="PYTHON=$(PythonDirX64)\python.exe"
+		Name="PythonPathX64"
+		Value="$(PythonPath).x64"
 	/>
 </VisualStudioPropertySheet>

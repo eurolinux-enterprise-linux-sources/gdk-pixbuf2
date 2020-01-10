@@ -46,6 +46,7 @@
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
 				SubSystem="1"
+				RandomizedBaseAddress="1"
 				DataExecutionPrevention="0"
 				TargetMachine="1"
 			/>
@@ -77,6 +78,7 @@
 				SubSystem="1"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
+				RandomizedBaseAddress="1"
 				DataExecutionPrevention="0"
 				TargetMachine="1"
 			/>
@@ -109,6 +111,7 @@
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
 				SubSystem="1"
+				RandomizedBaseAddress="1"
 				DataExecutionPrevention="0"
 				TargetMachine="17"
 			/>
@@ -141,6 +144,7 @@
 				SubSystem="1"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
+				RandomizedBaseAddress="1"
 				DataExecutionPrevention="0"
 				TargetMachine="17"
 			/>

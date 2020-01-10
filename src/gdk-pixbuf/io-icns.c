@@ -95,8 +95,7 @@ load_resources (unsigned size, IN gpointer data, gsize datalen,
       blocklen = GUINT32_FROM_BE (header->size);
 
       /* Check that blocklen isn't garbage */
-      if (blocklen > icnslen - (current - bytes) ||
-	  blocklen < sizeof (IcnsBlockHeader))
+      if (blocklen > icnslen - (current - bytes))
         return FALSE;
 
       switch (size)

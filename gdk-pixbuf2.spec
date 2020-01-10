@@ -2,7 +2,7 @@
 
 Name:           gdk-pixbuf2
 Version:        2.28.2
-Release:        4%{?dist}
+Release:        5%{?dist}
 Summary:        An image loading library
 
 Group:          System Environment/Libraries
@@ -13,6 +13,9 @@ Source0:        http://download.gnome.org/sources/gdk-pixbuf/2.28/gdk-pixbuf-%{v
 
 # upstream fix
 Patch0: 0001-Make-update-cache-work-better.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1253213
+Patch1: cve-2015-4491.patch
+
 BuildRequires:  glib2-devel >= %{glib2_version}
 BuildRequires:  libpng-devel
 BuildRequires:  libjpeg-devel
@@ -57,6 +60,7 @@ for writing applications that are using gdk-pixbuf.
 %prep
 %setup -q -n gdk-pixbuf-%{version}
 %patch0 -p1
+%patch1 -p1
 
 %build
 (if ! test -x configure; then NOCONFIGURE=1 ./autogen.sh; CONFIGFLAGS=--enable-gtk-doc; fi;
@@ -120,6 +124,14 @@ fi
 
 
 %changelog
+* Mon Aug 31 2015 Scientific Linux Auto Patch Process <SCIENTIFIC-LINUX-DEVEL@LISTSERV.FNAL.GOV>
+- Eliminated rpmbuild "bogus date" error due to inconsistent weekday,
+  by assuming the date is correct and changing the weekday.
+
+* Wed Aug 19 2015 Benjamin Otte <otte@redhat.com> - 2.28.2-5
+- Fix CVE 2015-4491
+- Resolves #1253213
+
 * Fri Jan 24 2014 Daniel Mach <dmach@redhat.com> - 2.28.2-4
 - Mass rebuild 2014-01-24
 
